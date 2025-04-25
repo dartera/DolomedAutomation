@@ -1,5 +1,5 @@
 {
-  "name": "dolomed-automation",
+  "name": "dolomedautomation",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -8,21 +8,25 @@
     "report:open": "npx playwright show-report",
     "report:custom": "node -r ts-node/register src/utils/customReporter.ts",
     "open-report": "npx http-server test-results -o /custom-report.html --port 8080 --host localhost",
-    "test:failed": "playwright test --config=src/utils/playwright-rerun.config.ts"
+    "test:allure": "playwright test --reporter=line,allure-playwright --project='Desktop Chrome'",
+    "allure:generate": "allure generate allure-results -o allure-report --clean",
+    "allure:serve": "allure serve allure-results"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "@playwright/test": "^1.51.0",
+    "@playwright/test": "^1.51.1",
     "@types/node": "^22.13.9",
     "@types/pngjs": "^6.0.5",
-    "pixelmatch": "^7.1.0",
-    "pngjs": "^7.0.0",
-    "ts-node": "^10.9.2"
+    "allure-playwright": "^3.2.1"
   },
   "dependencies": {
+    "pixelmatch": "^7.1.0",
+    "pngjs": "^7.0.0"
+  },
+  "optionalDependencies": {
     "canvas": "^3.1.0"
   }
 }
