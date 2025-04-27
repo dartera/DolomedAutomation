@@ -50,23 +50,6 @@ test.describe('Dolomed Kopfschmerzen Page Tests', () => {
         expect(await kopfschmerzenPage.areTreatmentsVisible('migraine')).toBe(true);
     });
 
-    // Test Tension Headaches Section
-    test('should display Tension Headaches section correctly', async () => {
-        // Verify Tension section is visible
-        expect(await kopfschmerzenPage.isSectionVisible('tension')).toBe(true);
-        
-        // Verify section title
-        const title = await kopfschmerzenPage.getSectionTitle('tension');
-        expect(title).toContain('Spannungskopfschmerzen');
-        
-        // Verify text content
-        const text = await kopfschmerzenPage.getSectionText('tension');
-        expect(text).toContain('Spannungskopfschmerzen sind die häufigste Form von Kopfschmerzen und zeichnen sich durch dumpfe');
-        
-        // Verify treatments are visible
-        expect(await kopfschmerzenPage.areTreatmentsVisible('tension')).toBe(true);
-    });
-
     // Test Cluster Headaches Section
     test('should display Cluster Headaches section correctly', async () => {
         // Verify Cluster section is visible

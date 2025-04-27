@@ -21,7 +21,7 @@ pipeline {
 
     options {
         // timeout(time: 30, unit: 'MINUTES')
-        // retry(3)
+       retry(1)
         skipDefaultCheckout()
     }
 
@@ -112,6 +112,9 @@ pipeline {
                     # Install dependencies
                     npm install
                     
+                    # Ensure sharp is installed (including pre-built binaries)
+                    npm install --force sharp
+                    
                     # Install Playwright browsers
                     npx playwright install --with-deps
                 '''
@@ -121,6 +124,10 @@ pipeline {
         stage('Run Tests') {
             steps {
                 sh '''
+                    # Use traditional pixel-based comparison (default)
+                    # To enable similarity comparison, uncomment the next line:
+                    # export USE_SIMILARITY_COMPARISON=true
+                    
                     # Run tests with Allure reporting
                     npm run test:allure || true  # Continue even if tests fail
                     
@@ -128,7 +135,7 @@ pipeline {
                     for i in {1..3}; do
                         echo "Retry attempt $i of 3 for failed tests..."
                         if [ -d "${PLAYWRIGHT_TEST_RESULTS_DIR}" ] && grep -q "failed" ${PLAYWRIGHT_TEST_RESULTS_DIR}/report.json 2>/dev/null; then
-                            npx playwright test --last-failed || true
+                            npm run test:retry-failed || true
                         else
                             echo "No failed tests to retry or results directory not found."
                             break
@@ -149,28 +156,6 @@ pipeline {
                                 ${PLAYWRIGHT_TEST_RESULTS_DIR}/ \\
                                 ${ALLURE_RESULTS_DIR}/ || true
                         """
-                        
-                        // Send email with test reports
-                        emailext (
-                            subject: "Test Report: ${currentBuild.fullDisplayName}",
-                            body: """
-                                <h2>Test Execution Summary</h2>
-                                <p>Status: ${currentBuild.currentResult}</p>
-                                <p>Build URL: <a href="${BUILD_URL}">${BUILD_URL}</a></p>
-                                <p>Allure Report: <a href="${BUILD_URL}allure">${BUILD_URL}allure</a></p>
-                                
-                                <h3>Test Results:</h3>
-                                <pre>
-                                ${sh(script: "cat ${PLAYWRIGHT_TEST_RESULTS_DIR}/junit-results.xml | grep -A 1 'testsuite' || echo 'No test results available'", returnStdout: true)}
-                                </pre>
-                                
-                                <p>Please find detailed test reports in the attachments.</p>
-                            """,
-                            to: "enuqidzebeqa@gmail.com",
-                            attachmentsPattern: 'test-reports.zip',
-                            mimeType: 'text/html',
-                            attachLog: true
-                        )
                     }
                 }
             }
@@ -213,74 +198,35 @@ pipeline {
                     def buildUrl = env.BUILD_URL
                     def date = new Date().format("yyyy-MM-dd HH:mm:ss")
                     
-                    // Create task description with test results and links
-                    def taskDescription = """**Test Execution Summary**\n- **Job**: ${jobName}\n- **Build**: #${buildNumber}\n- **Status**: ${testResult}\n- **Date**: ${date}\n- **Build URL**: ${buildUrl}\n- **Allure Report**: ${buildUrl}allure\n\n${testResult == 'SUCCESS' ? '✅ All tests passed successfully.' : '❌ Some tests failed. Please check the report for details.'}"""
-
-                    // Task name
-                    def taskName = "Test Results: ${jobName} #${buildNumber} - ${testResult}"
-                    def taskStatus = testResult == 'SUCCESS' ? 'complete' : 'to do'
-                    def taskPriority = testResult == 'SUCCESS' ? 3 : 1  // 1=Urgent, 2=High, 3=Normal, 4=Low
-                    
-                    // Create the JSON directly in Groovy
-                    def taskJson = """
-                    {
-                        "name":"${taskName}",
-                        "description":"${taskDescription}",
-                        "status":"${taskStatus}",
-                        "priority":${taskPriority},
-                        "due_date":${System.currentTimeMillis() + 86400000},
-                        "tags":["automated-test","${testResult.toLowerCase()}"],
-                        "assignees":[${CLICKUP_USER_ID}]
-                    }
-                    """
-                    
-                    // Get list ID from the parent task
-                    def listId = ""
-                    try {
-                        def parentTaskResponse = sh(
-                            script: "curl -s -X GET 'https://api.clickup.com/api/v2/task/${CLICKUP_PARENT_TASK_ID}' -H 'Authorization: ${CLICKUP_API_TOKEN}' -H 'Content-Type: application/json'",
-                            returnStdout: true
-                        ).trim()
-                        
-                        echo "Response received from ClickUp API (length: ${parentTaskResponse.length()})"
-                        
-                        // Extract list ID using Groovy
-                        def matcher = parentTaskResponse =~ /"list":\{"id":"([0-9]+)"/
-                        if (matcher.find()) {
-                            listId = matcher.group(1)
-                            echo "Using list ID: ${listId}"
-                        } else {
-                            echo "Error: Could not extract list ID"
+                    // Skip regular task creation, only create bug tickets for failures
+                    if (testResult != 'SUCCESS') {
+                        // Get list ID directly (without creating a regular task first)
+                        def listId = ""
+                        try {
+                            def parentTaskResponse = sh(
+                                script: "curl -s -X GET 'https://api.clickup.com/api/v2/task/${CLICKUP_PARENT_TASK_ID}' -H 'Authorization: ${CLICKUP_API_TOKEN}' -H 'Content-Type: application/json'",
+                                returnStdout: true
+                            ).trim()
+                            
+                            echo "Response received from ClickUp API (length: ${parentTaskResponse.length()})"
+                            
+                            // Extract list ID using Groovy
+                            def matcher = parentTaskResponse =~ /"list":\{"id":"([0-9]+)"/
+                            if (matcher.find()) {
+                                listId = matcher.group(1)
+                                echo "Using list ID: ${listId}"
+                            } else {
+                                echo "Error: Could not extract list ID"
+                                return
+                            }
+                        } catch (Exception e) {
+                            echo "Error getting parent task info: ${e.message}"
                             return
                         }
-                    } catch (Exception e) {
-                        echo "Error getting parent task info: ${e.message}"
-                        return
-                    }
-                    
-                    // Create the task
-                    def taskResponse = ""
-                    try {
-                        // Create a temporary file for the JSON
-                        writeFile file: 'task.json', text: taskJson
-                        
-                        // Create the task using the JSON file
-                        taskResponse = sh(
-                            script: "curl -X POST 'https://api.clickup.com/api/v2/list/${listId}/task' -H 'Authorization: ${CLICKUP_API_TOKEN}' -H 'Content-Type: application/json' -d @task.json",
-                            returnStdout: true
-                        ).trim()
                         
                         // Save list ID for bug ticket creation
                         sh "echo ${listId} > /tmp/clickup_list_id"
-                    } catch (Exception e) {
-                        echo "Error creating task: ${e.message}"
-                        return
-                    }
-                    
-                    echo "Created ClickUp task: ${taskName} and assigned to QA Engineer"
-                    
-                    // If tests failed, also create a bug ticket
-                    if (testResult != 'SUCCESS') {
+                        
                         // Analyze test results to find failures
                         def failedTests = []
                         try {
@@ -315,7 +261,7 @@ pipeline {
                             echo "Error analyzing test results: ${e.message}"
                         }
                         
-                        // Get failed test details from the Allure report
+                        // Create bug report in ClickUp
                         def bugTitle = "BUG: Test Failures in ${jobName} #${buildNumber}"
                         
                         // Deduplicate failures to prevent repetition
@@ -547,22 +493,6 @@ pipeline {
             cleanWs()
         }
         failure {
-            emailext (
-                subject: "Failed Pipeline: ${currentBuild.fullDisplayName}",
-                body: """
-                    <p>Pipeline execution failed:</p>
-                    <p>Status: ${currentBuild.currentResult}</p>
-                    <p>Build URL: ${BUILD_URL}</p>
-                    
-                    <p>Error Details:</p>
-                    <pre>
-                    ${currentBuild.description ?: 'No description available'}
-                    </pre>
-                """,
-                to: "enuqidzebeqa@gmail.com",
-                attachLog: true,
-                compressLog: true
-            )
             echo 'Pipeline failed. Check the logs for details.'
             echo 'Visual comparison failures detected. Please check the test report for details.'
         }

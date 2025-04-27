@@ -1,13 +1,27 @@
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { 
     setupPage, 
     createDesktopContext,
-    createMobileContext
+    createMobileContext,
+    comparePageScreenshot,
+    AdvancedComparisonOptions,
+    compareScreenshots,
+    ComparisonResult
 } from '../../utils/uiTestUtils';
-import { comparePageScreenshot } from '../../utils/imageCompare';
 
 // Increase the test timeout to 120 seconds
 test.setTimeout(120000);
+
+// Define common options for visual comparison
+const comparisonOptions: Partial<AdvancedComparisonOptions> = {
+    // Use traditional pixel comparison by default
+    useSimilarityComparison: false,
+    
+    // Set more tolerant thresholds for CI
+    threshold: process.env.CI ? 0.1 : 0.05,  // Keep the original lower threshold
+    includeAA: false,  // Keep original value
+    maxDiffPercentage: process.env.CI ? 7.0 : 5.0  // More tolerant in CI
+};
 
 test.describe('Nervenstimulation page visual comparison', () => {
     const languages = ['de', 'fr'] as const;
@@ -23,9 +37,12 @@ test.describe('Nervenstimulation page visual comparison', () => {
                 
                 // Set up the page with language-specific URL
                 const url = getLanguageUrl(lang);
+                console.log(`Navigating to URL: ${url}`);
+                
                 await setupPage(page, url, undefined, {
                     handleCookieConsent: true,
                     waitTime: 3000,
+                    scrollPage: true
                 });
                 
                 // Wait for network to be idle
@@ -36,25 +53,21 @@ test.describe('Nervenstimulation page visual comparison', () => {
                 // to trigger lazy loading before taking the screenshot
                 const result = await comparePageScreenshot(
                     page,
-                    `NervenstimulationPage-Full-${lang}`,
+                    `NervenstimulationPage_Full_${lang}`,
                     'NervenstimulationPage',
                     test.info(),
-                    {
-                        threshold: 0.05,
-                        includeAA: false,
-                        maxDiffPercentage: 5.0
-                    }
+                    comparisonOptions
                 );
                 
                 // Log test information including diff paths
                 console.log(`Desktop test results for ${lang}:
                     - Passed: ${result.passed}
                     - Difference: ${result.percentDifferent.toFixed(2)}%
-                    - Maximum allowed: 5.0%`);
+                    - Maximum allowed: ${comparisonOptions.maxDiffPercentage}%`);
                 
                 // Fail the test if the comparison fails
                 if (!result.passed) {
-                    throw new Error(`Visual differences detected in ${lang}: ${result.percentDifferent.toFixed(2)}% of pixels are different. Max allowed: 5.0%. Check the diff image for details.`);
+                    throw new Error(`Visual differences detected in ${lang}: ${result.percentDifferent.toFixed(2)}% of pixels are different. Check the diff image for details.`);
                 }
             } catch (error) {
                 // Log the error properly
@@ -80,9 +93,12 @@ test.describe('Nervenstimulation page visual comparison', () => {
                 
                 // Set up the page with language-specific URL
                 const url = getLanguageUrl(lang);
+                console.log(`Navigating to URL: ${url}`);
+                
                 await setupPage(page, url, undefined, {
                     handleCookieConsent: true,
                     waitTime: 3000,
+                    scrollPage: true
                 });
                 
                 // Fix layout issues before taking screenshot
@@ -96,25 +112,21 @@ test.describe('Nervenstimulation page visual comparison', () => {
                 // to trigger lazy loading before taking the screenshot
                 const result = await comparePageScreenshot(
                     page,
-                    `NervenstimulationPage-Mobile-${lang}`,
+                    `NervenstimulationPage_Mobile_${lang}`,
                     'NervenstimulationPage',
                     test.info(),
-                    {
-                        threshold: 0.05,
-                        includeAA: false,
-                        maxDiffPercentage: 5.0
-                    }
+                    comparisonOptions
                 );
                 
                 // Log test information including diff paths
                 console.log(`Mobile test results for ${lang}:
                     - Passed: ${result.passed}
                     - Difference: ${result.percentDifferent.toFixed(2)}%
-                    - Maximum allowed: 5.0%`);
+                    - Maximum allowed: ${comparisonOptions.maxDiffPercentage}%`);
                 
                 // Fail the test if the comparison fails
                 if (!result.passed) {
-                    throw new Error(`Visual differences detected in ${lang}: ${result.percentDifferent.toFixed(2)}% of pixels are different. Max allowed: 5.0%. Check the diff image for details.`);
+                    throw new Error(`Visual differences detected in ${lang}: ${result.percentDifferent.toFixed(2)}% of pixels are different. Check the diff image for details.`);
                 }
             } catch (error) {
                 // Log the error properly

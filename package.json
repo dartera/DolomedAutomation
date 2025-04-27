@@ -1,28 +1,38 @@
 {
-  "name": "dolomed-automation",
+  "name": "dolomedautomation",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "test": "playwright test",
     "test:report": "playwright test && npx playwright show-report",
+    "test:pixel": "playwright test",
+    "test:similarity": "USE_SIMILARITY_COMPARISON=true playwright test",
     "report:open": "npx playwright show-report",
     "report:custom": "node -r ts-node/register src/utils/customReporter.ts",
     "open-report": "npx http-server test-results -o /custom-report.html --port 8080 --host localhost",
-    "test:failed": "playwright test --config=src/utils/playwright-rerun.config.ts"
+    "test:allure": "playwright test --reporter=line,allure-playwright --project='Desktop Chrome' && npx playwright test --last-failed",
+    "test:retry-failed": "playwright test --last-failed",
+    "allure:generate": "allure generate allure-results -o allure-report --clean",
+    "allure:serve": "allure serve allure-results"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "@playwright/test": "^1.51.0",
+    "@playwright/test": "^1.51.1",
     "@types/node": "^22.13.9",
     "@types/pngjs": "^6.0.5",
-    "pixelmatch": "^7.1.0",
-    "pngjs": "^7.0.0",
-    "ts-node": "^10.9.2"
+    "allure-playwright": "^3.2.1"
   },
   "dependencies": {
+    "image-hash": "^5.3.2",
+    "pixelmatch": "^7.1.0",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.33.2",
+    "ssim.js": "^3.5.0"
+  },
+  "optionalDependencies": {
     "canvas": "^3.1.0"
   }
 }

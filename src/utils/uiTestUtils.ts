@@ -2,6 +2,7 @@ import { Page, BrowserContext } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { PNG } from 'pngjs';
+import { compareImageSimilarity, SimilarityResult, SimilarityOptions } from './imageSimilarity';
 
 /**
  * Interface for viewport size
@@ -321,72 +322,88 @@ export async function takeLimitedHeightScreenshot(
     // Get viewport size
     const viewport = page.viewportSize() || { width: 1280, height: 720 };
     
-    // Just take a single screenshot with strict clipping
-    console.log(`Taking screenshot with strict height limit of ${maxHeight}px`);
+    // Determine if this is a mobile view by viewport width or URL pattern
+    const isMobileView = viewport.width <= 768 || 
+                       page.url().includes('Mobile') || 
+                       page.url().includes('mobile');
+    
+    // Set standardized heights for ALL environments to ensure consistency
+    // These fixed heights will be the same in both local and CI environments
+    const STANDARD_DESKTOP_HEIGHT = 4500;  // Standard height for desktop
+    const STANDARD_MOBILE_HEIGHT = 8000;   // Standard height for mobile
+    
+    // Determine the standard height based on view type
+    const standardHeight = isMobileView ? STANDARD_MOBILE_HEIGHT : STANDARD_DESKTOP_HEIGHT;
+    
+    console.log(`Taking screenshot with standardized height of ${standardHeight}px (${isMobileView ? 'mobile' : 'desktop'} view)`);
     
     try {
         // Scroll to top first to ensure we capture the top of the page
         await page.evaluate(() => window.scrollTo(0, 0));
-        await page.waitForTimeout(100);
+        await page.waitForTimeout(200);
         
-        // Take a simple viewport screenshot with fixed dimensions
+        // First approach: Take a viewport-limited screenshot with fullPage:true
+        // to capture more content, then we'll resize it to standard dimensions
         await page.screenshot({
             path: outputPath,
-            fullPage: false, // Explicitly disable full page
-            clip: {
-                x: 0,
-                y: 0,
-                width: viewport.width,
-                height: Math.min(maxHeight, 5000) // Even stricter limit
-            },
+            fullPage: true, 
             type: 'png'
         });
         
-        // Get the dimensions of the saved file to verify
+        // Get dimensions of the saved screenshot
         const { PNG } = require('pngjs');
         const fs = require('fs');
-        const data = fs.readFileSync(outputPath);
-        const png = PNG.sync.read(data);
-        console.log(`Screenshot saved with dimensions: ${png.width}x${png.height}px`);
+        const initialImage = PNG.sync.read(fs.readFileSync(outputPath));
+        console.log(`Initial screenshot saved with dimensions: ${initialImage.width}x${initialImage.height}px`);
         
-        // If image is still too large, resize it using sharp
-        if (png.height > maxHeight) {
-            console.log(`Warning: Screenshot still too tall (${png.height}px). Forcing resize...`);
+        // Always normalize to standard height, regardless of environment
+        console.log(`Normalizing screenshot to standard ${isMobileView ? 'mobile' : 'desktop'} height (${standardHeight}px)...`);
+        try {
+            // Try to use sharp for higher quality resizing
             try {
-                // Try using sharp if available (much more efficient than canvas)
                 const sharp = require('sharp');
                 await sharp(outputPath)
                     .resize({ 
                         width: viewport.width, 
-                        height: maxHeight,
-                        fit: 'cover',
-                        position: 'top'
+                        height: standardHeight,
+                        fit: 'contain',
+                        position: 'top',
+                        background: { r: 255, g: 255, b: 255, alpha: 1 } // White background
                     })
-                    .toFile(outputPath + '.resized.png');
+                    .toFile(outputPath + '.normalized.png');
                 
-                // Replace original with resized version
+                // Replace original with normalized version
                 fs.unlinkSync(outputPath);
-                fs.renameSync(outputPath + '.resized.png', outputPath);
-                console.log(`Successfully resized to ${viewport.width}x${maxHeight}px`);
-            } catch (err) {
-                // Fallback to simpler approach if sharp isn't available
-                console.log(`Couldn't use sharp for resizing: ${err.message}`);
-                console.log('Using fallback resize method');
+                fs.renameSync(outputPath + '.normalized.png', outputPath);
+                console.log(`Successfully normalized to standard height: ${viewport.width}x${standardHeight}px`);
+            } catch (sharpError) {
+                console.log(`Sharp not available for resizing: ${sharpError.message}`);
                 
-                // Create a fixed-size canvas
+                // Fallback to canvas resizing
                 const { createCanvas, Image } = require('canvas');
-                const canvas = createCanvas(viewport.width, maxHeight);
+                const canvas = createCanvas(viewport.width, standardHeight);
                 const ctx = canvas.getContext('2d');
                 
-                // Draw only the top portion
+                // Fill with white background
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, viewport.width, standardHeight);
+                
+                // Draw the screenshot at the top
                 const img = new Image();
-                img.src = data;
+                img.src = fs.readFileSync(outputPath);
                 ctx.drawImage(img, 0, 0);
                 
-                // Save back to file
+                // Save the normalized image
                 fs.writeFileSync(outputPath, canvas.toBuffer('image/png'));
-                console.log(`Used canvas fallback to limit to ${maxHeight}px height`);
+                console.log(`Used canvas to normalize to standard height: ${viewport.width}x${standardHeight}px`);
             }
+            
+            // Verify final dimensions
+            const finalImage = PNG.sync.read(fs.readFileSync(outputPath));
+            console.log(`Final screenshot dimensions: ${finalImage.width}x${finalImage.height}px`);
+        } catch (error) {
+            console.error(`Error normalizing screenshot height: ${error.message}`);
+            // Continue with original screenshot if normalization fails
         }
         
         console.log(`Screenshot saved to ${outputPath}`);
@@ -394,16 +411,17 @@ export async function takeLimitedHeightScreenshot(
         console.error(`Error taking limited screenshot: ${error.message}`);
         console.error(error.stack);
         
-        // Last resort - create a blank image of the right size
+        // Last resort - create a blank image of the standard height
         try {
             console.log('Creating blank image as fallback');
             const { createCanvas } = require('canvas');
-            const canvas = createCanvas(viewport.width, maxHeight / 2);
+            const standardHeight = isMobileView ? STANDARD_MOBILE_HEIGHT : STANDARD_DESKTOP_HEIGHT;
+            const canvas = createCanvas(viewport.width, standardHeight);
             const ctx = canvas.getContext('2d');
             
             // Fill with white background
             ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, viewport.width, maxHeight / 2);
+            ctx.fillRect(0, 0, viewport.width, standardHeight);
             
             // Add text explaining the error
             ctx.fillStyle = 'black';
@@ -429,9 +447,8 @@ export async function takeFullPageScreenshot(
     paths: ScreenshotPaths,
     testInfo: any
 ): Promise<string> {
-    // Use our simplified screenshot function with strict height limits
-    const MAX_SCREENSHOT_HEIGHT = 5000; // Even more conservative limit
-    await takeLimitedHeightScreenshot(page, paths.actualPath, MAX_SCREENSHOT_HEIGHT);
+    // Use our standardized screenshot function with fixed heights based on view type
+    await takeLimitedHeightScreenshot(page, paths.actualPath);
     
     // Attach the screenshot to the test report
     await testInfo.attach('actual', {
@@ -501,60 +518,114 @@ export async function compareScreenshots(
     
     // Check if dimensions match
     if (baselineImg.width !== actualImg.width || baselineImg.height !== actualImg.height) {
-        console.log('Warning: Image dimensions do not match. Resizing actual image to match baseline.');
+        console.log('Image dimensions do not match. Normalizing both images to ensure consistent comparison.');
         console.log(`Actual: ${actualImg.width}x${actualImg.height}, Baseline: ${baselineImg.width}x${baselineImg.height}`);
         
-        // Create a new PNG with baseline dimensions
-        const resizedActual = new PNG({ width: baselineImg.width, height: baselineImg.height });
-        const diff = new PNG({ width: baselineImg.width, height: baselineImg.height });
+        // Determine target dimensions - use the baseline width but choose the smaller height
+        const targetWidth = baselineImg.width;
+        const targetHeight = Math.min(baselineImg.height, actualImg.height);
         
-        // Simple scaling approach - could be enhanced with more sophisticated algorithms
-        // Scale the actual image data to match baseline dimensions
+        console.log(`Resizing both images to ${targetWidth}x${targetHeight} for comparison`);
+        
+        // Create normalized versions of both images
+        const normalizedActual = new PNG({ width: targetWidth, height: targetHeight });
+        const normalizedBaseline = new PNG({ width: targetWidth, height: targetHeight });
+        const diff = new PNG({ width: targetWidth, height: targetHeight });
+        
         try {
-            // Create a canvas to help with the resize operation
-            const { createCanvas, Image } = require('canvas');
-            
-            // Limit canvas size to prevent crashes
-            const targetWidth = Math.min(baselineImg.width, 3000); // More conservative limit
-            const targetHeight = Math.min(baselineImg.height, 8000); // More conservative limit
-            
-            const canvas = createCanvas(targetWidth, targetHeight);
-            const ctx = canvas.getContext('2d');
-            
-            // Create an Image from the actual image data
-            const img = new Image();
-            const actualBuffer = PNG.sync.write(actualImg);
-            img.src = actualBuffer;
-            
-            // Draw the image to the canvas with the new dimensions
-            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-            
-            // Get the resized image data
-            const resizedData = ctx.getImageData(0, 0, targetWidth, targetHeight).data;
-            
-            // Copy the data to the resized PNG
-            for (let y = 0; y < targetHeight; y++) {
-                for (let x = 0; x < targetWidth; x++) {
-                    const idx = (targetWidth * y + x) << 2;
-                    resizedActual.data[idx] = resizedData[idx];
-                    resizedActual.data[idx + 1] = resizedData[idx + 1];
-                    resizedActual.data[idx + 2] = resizedData[idx + 2];
-                    resizedActual.data[idx + 3] = resizedData[idx + 3];
+            // Try to use sharp for better quality resizing if available
+            try {
+                const sharp = require('sharp');
+                
+                // Resize actual image
+                const actualResized = await sharp(actualPath)
+                    .resize({ 
+                        width: targetWidth, 
+                        height: targetHeight,
+                        fit: 'cover',
+                        position: 'top'
+                    })
+                    .png()
+                    .toBuffer();
+                
+                // Resize baseline image
+                const baselineResized = await sharp(baselinePath)
+                    .resize({ 
+                        width: targetWidth, 
+                        height: targetHeight,
+                        fit: 'cover',
+                        position: 'top'
+                    })
+                    .png()
+                    .toBuffer();
+                
+                // Convert buffers to PNG objects
+                const resizedActualImg = PNG.sync.read(actualResized);
+                const resizedBaselineImg = PNG.sync.read(baselineResized);
+                
+                // Copy data to normalized PNGs
+                normalizedActual.data = Buffer.from(resizedActualImg.data);
+                normalizedBaseline.data = Buffer.from(resizedBaselineImg.data);
+                
+                console.log('Images successfully normalized using sharp library for better quality.');
+            } 
+            catch (sharpError) {
+                console.log(`Sharp library not available, falling back to canvas: ${sharpError.message}`);
+                
+                // Create a canvas to help with the resize operation
+                const { createCanvas, Image } = require('canvas');
+                
+                // Resize actual image
+                const actualCanvas = createCanvas(targetWidth, targetHeight);
+                const actualCtx = actualCanvas.getContext('2d');
+                const actualImg = new Image();
+                actualImg.src = fs.readFileSync(actualPath);
+                actualCtx.drawImage(actualImg, 0, 0, targetWidth, targetHeight);
+                const actualData = actualCtx.getImageData(0, 0, targetWidth, targetHeight).data;
+                
+                // Resize baseline image
+                const baselineCanvas = createCanvas(targetWidth, targetHeight);
+                const baselineCtx = baselineCanvas.getContext('2d');
+                const baselineImg = new Image();
+                baselineImg.src = fs.readFileSync(baselinePath);
+                baselineCtx.drawImage(baselineImg, 0, 0, targetWidth, targetHeight);
+                const baselineData = baselineCtx.getImageData(0, 0, targetWidth, targetHeight).data;
+                
+                // Copy data to normalized PNGs
+                for (let y = 0; y < targetHeight; y++) {
+                    for (let x = 0; x < targetWidth; x++) {
+                        const idx = (targetWidth * y + x) << 2;
+                        // Copy actual image data
+                        normalizedActual.data[idx] = actualData[idx];
+                        normalizedActual.data[idx + 1] = actualData[idx + 1];
+                        normalizedActual.data[idx + 2] = actualData[idx + 2];
+                        normalizedActual.data[idx + 3] = actualData[idx + 3];
+                        
+                        // Copy baseline image data
+                        normalizedBaseline.data[idx] = baselineData[idx];
+                        normalizedBaseline.data[idx + 1] = baselineData[idx + 1];
+                        normalizedBaseline.data[idx + 2] = baselineData[idx + 2];
+                        normalizedBaseline.data[idx + 3] = baselineData[idx + 3];
+                    }
                 }
+                
+                console.log('Images successfully normalized using canvas library.');
             }
             
-            // Save the resized image for reference
-            const resizedPath = actualPath.replace('.png', '_resized.png');
-            fs.writeFileSync(resizedPath, PNG.sync.write(resizedActual));
-            console.log(`Saved resized actual image to: ${resizedPath}`);
+            // Save the normalized images for debugging
+            const normalizedActualPath = actualPath.replace('.png', '_normalized.png');
+            const normalizedBaselinePath = baselinePath.replace('.png', '_normalized.png');
+            fs.writeFileSync(normalizedActualPath, PNG.sync.write(normalizedActual));
+            fs.writeFileSync(normalizedBaselinePath, PNG.sync.write(normalizedBaseline));
+            console.log(`Saved normalized images to: ${normalizedActualPath} and ${normalizedBaselinePath}`);
             
-            // Continue with comparison using the resized image
+            // Compare normalized images
             const diffPixels = pixelmatch(
-                resizedActual.data,
-                baselineImg.data,
+                normalizedActual.data,
+                normalizedBaseline.data,
                 diff.data,
-                baselineImg.width,
-                baselineImg.height,
+                targetWidth,
+                targetHeight,
                 {
                     threshold: options.threshold ?? 0.3,
                     includeAA: options.includeAA ?? true,
@@ -568,14 +639,14 @@ export async function compareScreenshots(
             fs.writeFileSync(diffPath, PNG.sync.write(diff));
             
             // Calculate percentage different for better context
-            const totalPixels = baselineImg.width * baselineImg.height;
+            const totalPixels = targetWidth * targetHeight;
             const percentDifferent = (diffPixels / totalPixels) * 100;
             
             // Set acceptable difference threshold (default 5%)
             const maxAcceptableDiffPercentage = options.maxDiffPercentage ?? 5.0;
             const maxAcceptableDiffPixels = Math.floor(totalPixels * (maxAcceptableDiffPercentage / 100));
             
-            console.log(`Pixel difference count after resizing: ${diffPixels} (${percentDifferent.toFixed(2)}% of total)`);
+            console.log(`Pixel difference count after normalizing: ${diffPixels} (${percentDifferent.toFixed(2)}% of total)`);
             console.log(`Maximum acceptable difference: ${maxAcceptableDiffPixels} pixels (${maxAcceptableDiffPercentage}%)`);
             
             return {
@@ -586,7 +657,7 @@ export async function compareScreenshots(
             };
             
         } catch (error) {
-            console.error('Error during image resizing:', error);
+            console.error('Error during image normalization:', error);
             // Fallback to error diff if resizing fails
             createErrorDiffImage(diffPath, actualPath);
             
@@ -787,6 +858,15 @@ export async function createMobileContext(
 }
 
 /**
+ * Additional options for screenshot comparison including similarity-based methods
+ */
+export interface AdvancedComparisonOptions extends ComparisonOptions {
+    useSimilarityComparison?: boolean;  // Whether to use perceptual hash and SSIM instead of pixel-by-pixel
+    hashThreshold?: number;             // Maximum hash distance to consider similar (0-1)
+    ssimThreshold?: number;             // Minimum SSIM score to consider similar (0-1)
+}
+
+/**
  * Comprehensive function to handle visual comparison of a page
  */
 export async function comparePageScreenshot(
@@ -794,7 +874,7 @@ export async function comparePageScreenshot(
     screenshotName: string,
     baseDir: string,
     testInfo: any,
-    options: Partial<ComparisonOptions> = {}
+    options: Partial<AdvancedComparisonOptions> = {}
 ): Promise<ComparisonResult> {
     // Setup screenshot paths
     const paths = setupScreenshotPaths(baseDir, screenshotName);
@@ -804,7 +884,46 @@ export async function comparePageScreenshot(
     
     // If baseline exists, compare screenshots
     if (fs.existsSync(paths.baselinePath)) {
-        const result = await compareScreenshots(paths.actualPath, paths.baselinePath, paths.diffPath, options);
+        let result: ComparisonResult;
+        
+        // Determine if we should use similarity-based comparison
+        const useSimilarityComparison = options.useSimilarityComparison ?? !!process.env.USE_SIMILARITY_COMPARISON;
+        
+        if (useSimilarityComparison) {
+            console.log('Using perceptual similarity comparison instead of pixel-by-pixel comparison');
+            
+            // Configure similarity options
+            const similarityOptions: SimilarityOptions = {
+                hashThreshold: options.hashThreshold,
+                ssimThreshold: options.ssimThreshold,
+                isCI: !!process.env.CI
+            };
+            
+            // Compare using similarity methods
+            const similarityResult = await compareImageSimilarity(
+                paths.actualPath, 
+                paths.baselinePath, 
+                paths.diffPath,
+                similarityOptions
+            );
+            
+            // Create a compatible result object for reporting
+            result = {
+                diffPixels: Math.round(similarityResult.hashDistance * 10000), // Convert to a pixel-like number for reporting
+                percentDifferent: (1 - similarityResult.mssimScore) * 100,     // Convert SSIM to a difference percentage
+                maxAcceptableDiffPixels: 10000, // Just a placeholder for the report
+                passed: similarityResult.passed
+            };
+            
+            // Log detailed results
+            console.log(`Similarity comparison results:
+                - Hash distance: ${similarityResult.hashDistance.toFixed(4)} (lower is better)
+                - SSIM score: ${similarityResult.mssimScore.toFixed(4)} (higher is better)
+                - Result: ${similarityResult.passed ? 'PASSED' : 'FAILED'} (${similarityResult.comparisonMethod})`);
+        } else {
+            // Use traditional pixel-by-pixel comparison
+            result = await compareScreenshots(paths.actualPath, paths.baselinePath, paths.diffPath, options);
+        }
         
         // Always attach diff image
         if (fs.existsSync(paths.diffPath)) {

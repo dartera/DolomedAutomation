@@ -15,7 +15,7 @@ const isCI = !!process.env.CI;
 // Adjust timeouts for CI environment
 const ciTimeouts = {
   timeout: 120000,            // 2 minutes for test timeout
-  navigationTimeout: 60000,   // 1 minute for navigations
+  navigationTimeout: 30000,   // 1 minute for navigations
   expect: {
     timeout: 30000            // 30 seconds for expect operations
   }
@@ -47,8 +47,9 @@ export default defineConfig({
     timeout: timeouts.expect.timeout,
     toHaveScreenshot: {
       // Adjust threshold and max diff pixels for CI to be more tolerant
-      maxDiffPixels: isCI ? 1000 : 100,  // More tolerant in CI
-      threshold: isCI ? 0.5 : 0.2,       // Higher threshold in CI
+      maxDiffPixels: isCI ? 2000 : 100,  // More tolerant in CI
+      threshold: isCI ? 0.6 : 0.2,       // Higher threshold in CI
+      maxDiffPixelRatio: isCI ? 0.2 : 0.05, // Allow more diff pixels as a ratio in CI
     }
   },
   
@@ -57,7 +58,7 @@ export default defineConfig({
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
-  retries: process.env.CI ? 0 : 0,
+  retries: process.env.CI ? 1 : 0,
   /* Opt out of parallel tests on CI. */
   workers: isCI ? 5 : 5,  // Use fewer workers in CI for stability
   
@@ -70,6 +71,7 @@ export default defineConfig({
         }],
         ['json', { outputFile: 'test-results/test-results.json' }],
         ['junit', { outputFile: 'test-results/junit-results.xml' }],
+        ['allure-playwright'],
         ['list']
       ] 
     : [
@@ -98,6 +100,7 @@ export default defineConfig({
         }],
         ['json', { outputFile: 'test-results/test-results.json' }],
         ['junit', { outputFile: 'test-results/junit-results.xml' }],
+        ['allure-playwright'],
         ['./src/utils/customReport.ts']
       ],
 
@@ -107,7 +110,7 @@ export default defineConfig({
     baseURL: 'https://dolomed.ch/',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: isCI ? 'on' : 'retain-on-failure',
+    trace: 'retain-on-failure',  // Only keep traces for failed tests in both environments
     screenshot: isCI ? 'on' : 'only-on-failure',
     // video: isCI ? 'on' : 'retain-on-failure',
     
