@@ -14,14 +14,21 @@ pipeline {
         PLAYWRIGHT_TEST_RESULTS_DIR = "test-results"
         ALLURE_RESULTS_DIR = "allure-results"
         CLICKUP_API_TOKEN = credentials('clickup-api-token')
-        CLICKUP_PARENT_TASK_ID = '8698ty0vg'  // Updated with the new task ID
-        CLICKUP_USER_ID = '87801653'  // Your ClickUp user ID from the API response
+        CLICKUP_PARENT_TASK_ID = '8698ty0vg'
+        CLICKUP_USER_ID = '87801653'
         DEBIAN_FRONTEND = "noninteractive"
+        // Memory management environment variables
+        PLAYWRIGHT_TIMEOUT = '30000'
+        PLAYWRIGHT_WORKERS = '2'
+        MAX_SELECTORS = '50'
+        FORCE_EXIT_CODE = 'true'
+        ALLURE_RESPECT_EXIT_CODE = 'true'
+        // Remove debug flags
+        NODE_OPTIONS = '--max-old-space-size=2048 --expose-gc'
     }
 
     options {
-        // timeout(time: 30, unit: 'MINUTES')
-       retry(1)
+        // Completely remove timeout - let the OS manage it
         skipDefaultCheckout()
     }
 
@@ -71,7 +78,6 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                // retry(3) {
                     sh '''
                         # Clean workspace before cloning
                         rm -rf .* * 2>/dev/null || true
@@ -85,7 +91,6 @@ pipeline {
                         # Pull LFS files
                         git lfs pull
                     '''
-                // }
             }
         }
 
@@ -112,49 +117,158 @@ pipeline {
                     # Install dependencies
                     npm install
                     
-                    # Ensure sharp is installed (including pre-built binaries)
-                    npm install --force sharp
-                    
                     # Install Playwright browsers
                     npx playwright install --with-deps
                 '''
             }
         }
 
-        stage('Run Tests') {
+        stage('Monitor Memory') {
             steps {
                 sh '''
-                    # Use traditional pixel-based comparison (default)
-                    # To enable similarity comparison, uncomment the next line:
-                    # export USE_SIMILARITY_COMPARISON=true
+                    # Create a script to monitor memory usage
+                    cat > monitor_memory.sh << 'EOL'
+#!/bin/bash
+while true; do
+  free -m > memory_stats.txt
+  ps -o pid,ppid,%cpu,%mem,cmd --sort=-%mem | head -n 10 >> memory_stats.txt
+  echo "--------------------" >> memory_stats.txt
+  sleep 5
+done
+EOL
+                    chmod +x monitor_memory.sh
                     
-                    # Run tests with Allure reporting
-                    npm run test:allure || true  # Continue even if tests fail
-                    
-                    # Retry failed tests up to 3 times
-                    for i in {1..3}; do
-                        echo "Retry attempt $i of 3 for failed tests..."
-                        if [ -d "${PLAYWRIGHT_TEST_RESULTS_DIR}" ] && grep -q "failed" ${PLAYWRIGHT_TEST_RESULTS_DIR}/report.json 2>/dev/null; then
-                            npm run test:retry-failed || true
-                        else
-                            echo "No failed tests to retry or results directory not found."
-                            break
-                        fi
-                    done
+                    # Start memory monitoring in the background
+                    ./monitor_memory.sh &
+                    MONITOR_PID=$!
+                    echo $MONITOR_PID > monitor_pid.txt
                 '''
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                    sh '''
+                        # Add swap space to prevent OOM crashes
+                        sudo swapoff -a || true
+                        sudo fallocate -l 4G /swapfile || true
+                        sudo chmod 600 /swapfile || true
+                        sudo mkswap /swapfile || true
+                        sudo swapon /swapfile || true
+                        
+                        # Create directories first to avoid potential issues
+                        mkdir -p ${PLAYWRIGHT_TEST_REPORT_DIR} ${PLAYWRIGHT_TEST_RESULTS_DIR} ${ALLURE_RESULTS_DIR}
+                        
+                        # Run tests directly without debug mode
+                        PLAYWRIGHT_WORKERS=2 npm run test:allure
+                        TEST_EXIT_CODE=$?
+                        
+                        # Kill memory monitor
+                        MONITOR_PID=$(cat monitor_pid.txt 2>/dev/null) || true
+                        kill $MONITOR_PID 2>/dev/null || true
+                        
+                        # Ensure all Allure results are accessible
+                        chmod -R 755 ${ALLURE_RESULTS_DIR} || echo "Could not set permissions on Allure results"
+                        
+                        # Extract test result information
+                        echo "Extracting test result details..."
+                        if [ -d "${ALLURE_RESULTS_DIR}" ]; then
+                          # Find and examine result files
+                          grep -r '"status":"failed"' ${ALLURE_RESULTS_DIR}/*-result.json || echo "No explicit failures found in JSON"
+                          
+                          # Count failures
+                          FAILURE_COUNT=$(grep -r '"status":"failed"' ${ALLURE_RESULTS_DIR}/*-result.json | wc -l || echo "0")
+                          echo "Found $FAILURE_COUNT explicit test failures in Allure results"
+                          
+                          # Force Allure to recognize the failures
+                          if [ $FAILURE_COUNT -gt 0 ] || [ $TEST_EXIT_CODE -ne 0 ]; then
+                            echo "Ensuring build failures are reflected in Allure report"
+                            touch ${ALLURE_RESULTS_DIR}/force_build_failure
+                          fi
+                        fi
+                        
+                        echo "Test execution completed with exit code $TEST_EXIT_CODE. Check reports for details."
+                        
+                        # Always pass through non-zero exit codes
+                        if [ $TEST_EXIT_CODE -ne 0 ]; then
+                            echo "Failing the build due to test failures"
+                            exit $TEST_EXIT_CODE
+                        fi
+                    '''
+                }
             }
             post {
                 always {
                     script {
-                       allure includeProperties: false, jdk: '', results: [[path: 'allure-results']]
-  
+                        // Parse test results to check for failures
+                        def testResultsExist = fileExists('test-results/test-results.json')
+                        def hasFailures = false
                         
-                        // Create ZIP with all reports
+                        if (testResultsExist) {
+                            try {
+                                def testResults = readJSON file: 'test-results/test-results.json'
+                                if (testResults.stats && testResults.stats.failures > 0) {
+                                    hasFailures = true
+                                    echo "Found ${testResults.stats.failures} test failures in the test results"
+                                }
+                            } catch (Exception e) {
+                                echo "Error parsing test results: ${e.message}"
+                                hasFailures = true // Assume failures on error
+                            }
+                        }
+                        
+                        try {
+                            // Check for specific failure in FooterTest.spec.ts
+                            def footerTestFailed = false
+                            try {
+                                def footerFailure = sh(script: "grep -r 'Footer Functionality.*should verify all footer sections are present.*failed' test-results", returnStatus: true)
+                                if (footerFailure == 0) {
+                                    footerTestFailed = true
+                                    echo "Found specific failure in FooterTest - marking build as failed"
+                                    hasFailures = true
+                                }
+                            } catch (Exception e) {
+                                echo "Error checking for footer test failure: ${e.message}"
+                            }
+                            
+                            // Make sure the allure results directory exists and has content
+                            sh "mkdir -p ${ALLURE_RESULTS_DIR}"
+                            sh "find ${ALLURE_RESULTS_DIR} -type f | wc -l"
+                            
+                            // Create a status marker file to force Allure to reflect the correct status
+                            if (hasFailures) {
+                                sh """
+                                    echo '{"name":"Failed Tests","status":"failed"}' > ${ALLURE_RESULTS_DIR}/status.json
+                                """
+                            }
+                            
+                            allure([
+                                includeProperties: false, 
+                                jdk: '', 
+                                results: [[path: 'allure-results']]
+                            ])
+                        } catch (Exception e) {
+                            echo "Error generating Allure report: ${e.message}"
+                            // Try to create a minimal report anyway
+                            sh "mkdir -p allure-report"
+                        }
+                        
+                        // If tests failed, set the build result explicitly
+                        if (hasFailures) {
+                            currentBuild.result = 'FAILURE'
+                            echo "Setting build result to FAILURE due to test failures"
+                        }
+                        
+                        // Create ZIP with all reports - with error handling
                         sh """
+                            set +e
+                            mkdir -p ${PLAYWRIGHT_TEST_REPORT_DIR} ${PLAYWRIGHT_TEST_RESULTS_DIR} ${ALLURE_RESULTS_DIR}
                             zip -r test-reports.zip \\
                                 ${PLAYWRIGHT_TEST_REPORT_DIR}/ \\
                                 ${PLAYWRIGHT_TEST_RESULTS_DIR}/ \\
-                                ${ALLURE_RESULTS_DIR}/ || true
+                                ${ALLURE_RESULTS_DIR}/ || echo "Warning: Could not create zip file"
+                            set -e
                         """
                     }
                 }
@@ -164,11 +278,23 @@ pipeline {
         stage('Generate Reports') {
             steps {
                 sh '''
+                    # Make sure allure-results directory exists
+                    mkdir -p ${ALLURE_RESULTS_DIR}
+                    
                     # Generate Allure report using the full path to the Allure executable
                     ALLURE_PATH=$(which allure || echo "/var/lib/jenkins/tools/ru.yandex.qatools.allure.jenkins.tools.AllureCommandlineInstallation/Allure/bin/allure")
                     
                     if [ -x "$ALLURE_PATH" ]; then
-                        "$ALLURE_PATH" generate allure-results -o allure-report --clean
+                        # Force proper status detection
+                        TEST_EXIT_CODE=$(cat test_exit_code.txt 2>/dev/null || echo "0")
+                        if [ "$TEST_EXIT_CODE" != "0" ]; then
+                            echo "Creating forced failure status for Allure"
+                            echo '{"status":"failed"}' > ${ALLURE_RESULTS_DIR}/status.json
+                        fi
+                        
+                        "$ALLURE_PATH" generate ${ALLURE_RESULTS_DIR} -o allure-report --clean || echo "Allure report generation had issues"
+                        # Ensure report is accessible
+                        chmod -R 755 allure-report || echo "Could not set permissions on Allure report"
                     else
                         echo "Allure executable not found. Skipping report generation."
                         # Create empty report directory to avoid post-build failures
@@ -178,14 +304,13 @@ pipeline {
             }
             post {
                 always {
-                    archiveArtifacts artifacts: "allure-report/**/*"
+                    archiveArtifacts artifacts: "allure-report/**/*", allowEmptyArchive: true
                 }
             }
         }
         
         stage('Create ClickUp Task') {
             when {
-                // Run this stage even if previous stages failed, but don't run if SKIP_CLICKUP is true
                 not {
                     environment name: 'SKIP_CLICKUP', value: 'true'
                 }
@@ -198,9 +323,8 @@ pipeline {
                     def buildUrl = env.BUILD_URL
                     def date = new Date().format("yyyy-MM-dd HH:mm:ss")
                     
-                    // Skip regular task creation, only create bug tickets for failures
                     if (testResult != 'SUCCESS') {
-                        // Get list ID directly (without creating a regular task first)
+                        // Get list ID directly
                         def listId = ""
                         try {
                             def parentTaskResponse = sh(
@@ -208,35 +332,23 @@ pipeline {
                                 returnStdout: true
                             ).trim()
                             
-                            echo "Response received from ClickUp API (length: ${parentTaskResponse.length()})"
-                            
-                            // Extract list ID using Groovy
                             def matcher = parentTaskResponse =~ /"list":\{"id":"([0-9]+)"/
                             if (matcher.find()) {
                                 listId = matcher.group(1)
-                                echo "Using list ID: ${listId}"
-                            } else {
-                                echo "Error: Could not extract list ID"
-                                return
                             }
                         } catch (Exception e) {
                             echo "Error getting parent task info: ${e.message}"
                             return
                         }
                         
-                        // Save list ID for bug ticket creation
-                        sh "echo ${listId} > /tmp/clickup_list_id"
-                        
                         // Analyze test results to find failures
                         def failedTests = []
                         try {
-                            // Use shell commands instead of findFiles
                             def testFilesOutput = sh(
                                 script: "find ${ALLURE_RESULTS_DIR} -name '*.json' | grep -v 'categories\\|environment\\|history\\|executor\\|testrun' || true",
                                 returnStdout: true
                             ).trim()
                             
-                            // Process each test file found
                             if (testFilesOutput) {
                                 testFilesOutput.split('\n').each { filePath ->
                                     if (filePath) {
@@ -264,13 +376,10 @@ pipeline {
                         // Create bug report in ClickUp
                         def bugTitle = "BUG: Test Failures in ${jobName} #${buildNumber}"
                         
-                        // Deduplicate failures to prevent repetition
+                        // Deduplicate failures
                         def uniqueFailures = [:]
                         failedTests.each { test ->
-                            // Create a key that combines test name, location, and error message
                             def key = "${test.name}:${test.path}:${test.message}"
-                            
-                            // Store only unique failures with counts
                             if (uniqueFailures.containsKey(key)) {
                                 uniqueFailures[key].count++
                             } else {
@@ -312,7 +421,7 @@ pipeline {
 - [Jenkins Build](${buildUrl})
 - [Allure Report](${buildUrl}allure)"""
                         
-                        // Create the bug ticket JSON
+                        // Create the bug ticket
                         def bugJson = """
                         {
                             "name":"${bugTitle}",
@@ -325,24 +434,17 @@ pipeline {
                         """
                         
                         // Create the bug ticket
-                        def bugResponse = ""
                         def taskId = ""
-                        
                         try {
-                            // Create a temporary file for the JSON
                             writeFile file: 'bug_ticket.json', text: bugJson
-                            
-                            // Create the bug ticket
-                            bugResponse = sh(
+                            def bugResponse = sh(
                                 script: "curl -X POST 'https://api.clickup.com/api/v2/list/${listId}/task' -H 'Authorization: ${CLICKUP_API_TOKEN}' -H 'Content-Type: application/json' -d @bug_ticket.json",
                                 returnStdout: true
                             ).trim()
                             
-                            // Extract task ID from the response
                             def taskIdMatcher = bugResponse =~ /"id":"([^"]*)"/
                             if (taskIdMatcher.find()) {
                                 taskId = taskIdMatcher.group(1)
-                                echo "Created bug ticket with ID: ${taskId}"
                             }
                         } catch (Exception e) {
                             echo "Error creating bug ticket: ${e.message}"
@@ -352,29 +454,25 @@ pipeline {
                         // Attach screenshots if available
                         if (taskId && fileExists("${PLAYWRIGHT_TEST_RESULTS_DIR}")) {
                             try {
-                                // Extract test names that failed (for matching screenshots)
+                                // Extract test names that failed
                                 def failedTestNames = []
                                 failedTests.each { test ->
-                                    // Extract test name without spaces and special characters for matching
                                     def normalizedName = test.name.replaceAll(/[^a-zA-Z0-9]/, "").toLowerCase()
                                     if (normalizedName) {
                                         failedTestNames.add(normalizedName)
                                     }
                                     
-                                    // Also add test path components which might be in screenshot names
                                     if (test.path) {
                                         test.path.split(/[\/\\]/).each { pathPart ->
                                             def normalized = pathPart.replaceAll(/[^a-zA-Z0-9]/, "").toLowerCase()
-                                            if (normalized && normalized.length() > 3) { // Avoid short/common words
+                                            if (normalized && normalized.length() > 3) {
                                                 failedTestNames.add(normalized)
                                             }
                                         }
                                     }
                                 }
                                 
-                                echo "Looking for screenshots related to failed tests: ${failedTestNames.join(', ')}"
-                                
-                                // Use shell command to find screenshots 
+                                // Find all screenshots
                                 def screenshotsOutput = sh(
                                     script: "find ${PLAYWRIGHT_TEST_RESULTS_DIR} -name '*.png' -type f || true",
                                     returnStdout: true
@@ -382,29 +480,26 @@ pipeline {
                                 
                                 if (screenshotsOutput) {
                                     def uploadedScreenshots = 0
-                                    def processedFiles = [] // Track already processed files
+                                    def processedFiles = []
                                     
-                                    // Helper function to extract test identifier from path
+                                    // Helper function to extract test identifier
                                     def extractTestId = { String path ->
                                         def fileName = path.tokenize('/').last()
                                         def dirName = path.tokenize('/')[-2]
-                                        
-                                        // First try to extract meaningful test ID from directory name
                                         def testId = ""
                                         def matcher = dirName =~ /([A-Za-z0-9-]+(?:-retry\d+)?)$/
                                         if (matcher.find()) {
                                             testId = matcher.group(1)
                                         }
-                                        
                                         return [testId: testId, fileName: fileName, dirName: dirName]
                                     }
                                     
-                                    // Process screenshots from failed tests (test-failed-*.png files)
+                                    // First try: test-failed screenshots
                                     def failedTestScreenshots = screenshotsOutput.split('\n').findAll { path ->
                                         path && path.toLowerCase().contains("test-failed")
                                     }
                                     
-                                    // Group screenshots by test (using directory as the key)
+                                    // Group screenshots by test
                                     def screenshotsByTest = [:]
                                     failedTestScreenshots.each { path ->
                                         if (fileExists(path) && !processedFiles.contains(path)) {
@@ -418,29 +513,24 @@ pipeline {
                                         }
                                     }
                                     
-                                    // Upload one screenshot for each failed test
+                                    // Upload one screenshot per test
                                     screenshotsByTest.each { testKey, screenshots ->
-                                        // Find the best screenshot (usually test-failed-1.png)
                                         def bestScreenshot = screenshots.find { it.contains("test-failed-1.png") } ?: screenshots.first()
-                                        
                                         echo "Attaching screenshot for test ${testKey}: ${bestScreenshot}"
                                         sh "curl -X POST 'https://api.clickup.com/api/v2/task/${taskId}/attachment' -H 'Authorization: ${CLICKUP_API_TOKEN}' -F 'attachment=@${bestScreenshot}'"
                                         uploadedScreenshots++
                                         processedFiles.add(bestScreenshot)
                                     }
                                     
-                                    // If we didn't find any test-failed screenshots, use filename-based matching
+                                    // Second try: filename-based matching
                                     if (uploadedScreenshots == 0) {
                                         def matchedFilenames = []
-                                        
                                         screenshotsOutput.split('\n').each { path ->
                                             if (path && fileExists(path) && !processedFiles.contains(path)) {
                                                 def pathLower = path.toLowerCase()
                                                 def fileName = path.tokenize('/').last().toLowerCase()
                                                 
-                                                // Skip diff images and already processed tests
                                                 if (!fileName.contains("-diff") && !fileName.contains("_diff")) {
-                                                    // Find which test this screenshot belongs to
                                                     def matchedTest = failedTestNames.find { testName ->
                                                         pathLower.contains(testName) && !matchedFilenames.contains(testName)
                                                     }
@@ -457,13 +547,11 @@ pipeline {
                                         }
                                     }
                                     
-                                    // Final fallback - upload any failure-related screenshots we haven't uploaded yet
+                                    // Final fallback: any failure-related screenshots
                                     if (uploadedScreenshots == 0) {
                                         screenshotsOutput.split('\n').each { path ->
                                             if (path && fileExists(path) && !processedFiles.contains(path)) {
                                                 def fileName = path.tokenize('/').last().toLowerCase()
-                                                
-                                                // Check for common failure indicators in filename
                                                 if (fileName.contains("fail") || fileName.contains("error") || fileName.contains("assertion")) {
                                                     echo "Attaching failure screenshot: ${path}"
                                                     sh "curl -X POST 'https://api.clickup.com/api/v2/task/${taskId}/attachment' -H 'Authorization: ${CLICKUP_API_TOKEN}' -F 'attachment=@${path}'"
@@ -491,10 +579,6 @@ pipeline {
     post {
         always {
             cleanWs()
-        }
-        failure {
-            echo 'Pipeline failed. Check the logs for details.'
-            echo 'Visual comparison failures detected. Please check the test report for details.'
         }
     }
 }

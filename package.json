@@ -1,6 +1,6 @@
 {
   "name": "dolomedautomation",
-  "version": "1.0.0",
+ "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "test": "playwright test",
@@ -10,8 +10,8 @@
     "report:open": "npx playwright show-report",
     "report:custom": "node -r ts-node/register src/utils/customReporter.ts",
     "open-report": "npx http-server test-results -o /custom-report.html --port 8080 --host localhost",
-    "test:allure": "playwright test --reporter=line,allure-playwright --project='Desktop Chrome' && npx playwright test --last-failed",
-    "test:retry-failed": "playwright test --last-failed",
+    "test:allure": "playwright test --config=playwright.config.ts --reporter=line,allure-playwright --project='Desktop Chrome' --workers=2 --timeout=60000 --retries=0 || exit 1",
+    "test:retry-failed": "playwright test --last-failed || true",
     "allure:generate": "allure generate allure-results -o allure-report --clean",
     "allure:serve": "allure serve allure-results"
   },

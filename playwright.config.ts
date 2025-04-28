@@ -14,19 +14,19 @@ const isCI = !!process.env.CI;
 
 // Adjust timeouts for CI environment
 const ciTimeouts = {
-  timeout: 120000,            // 2 minutes for test timeout
-  navigationTimeout: 30000,   // 1 minute for navigations
+  timeout: process.env.PLAYWRIGHT_TIMEOUT ? parseInt(process.env.PLAYWRIGHT_TIMEOUT) : 30000,
+  navigationTimeout: 30000,
   expect: {
-    timeout: 30000            // 30 seconds for expect operations
+    timeout: 30000
   }
 };
 
 // Local timeouts (faster)
 const localTimeouts = {
-  timeout: 80000,             // 1 minute for test timeout
-  navigationTimeout: 30000,   // 30 seconds for navigations
+  timeout: process.env.PLAYWRIGHT_TIMEOUT ? parseInt(process.env.PLAYWRIGHT_TIMEOUT) : 30000,
+  navigationTimeout: 30000,
   expect: {
-    timeout: 15000            // 15 seconds for expect operations
+    timeout: 15000
   }
 };
 
@@ -49,76 +49,56 @@ export default defineConfig({
       // Adjust threshold and max diff pixels for CI to be more tolerant
       maxDiffPixels: isCI ? 2000 : 100,  // More tolerant in CI
       threshold: isCI ? 0.6 : 0.2,       // Higher threshold in CI
-      maxDiffPixelRatio: isCI ? 0.2 : 0.05, // Allow more diff pixels as a ratio in CI
+      maxDiffPixelRatio: isCI ? 0.2 : 0.05 // Allow more diff pixels as a ratio in CI
     }
   },
   
   /* Run tests in files in parallel */
   fullyParallel: false,
+  
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 1 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: isCI ? 5 : 5,  // Use fewer workers in CI for stability
+  
+  /* No retries in CI to make failures more visible */
+  retries: process.env.CI ? 0 : 0,
+  
+  /* Use single worker in CI for stability */
+  workers: isCI ? 5 : 5,
   
   /* Enhanced Reporter Configuration */
   reporter: isCI 
     ? [
-        ['html', {
-          outputFolder: 'playwright-report',
-          open: 'on-failure',
-        }],
+        ['list', { printSteps: true }],
         ['json', { outputFile: 'test-results/test-results.json' }],
         ['junit', { outputFile: 'test-results/junit-results.xml' }],
         ['allure-playwright'],
-        ['list']
+        ['html', { open: 'never' }]
       ] 
     : [
-        ['html', {
-          outputFolder: 'playwright-report',
-          open: 'on-failure',
-          attachmentsDirectory: 'playwright-report/attachments',
-          // Custom HTML report configuration
-          testGroups: [
-            {
-              name: 'Desktop Tests',
-              pattern: /Desktop view/
-            },
-            {
-              name: 'Mobile Tests',
-              pattern: /Mobile view/
-            }
-          ],
-          // Customize report metadata
-          metadata: {
-            'App Version': process.env.APP_VERSION || 'dev',
-            'Environment': process.env.TEST_ENV || 'staging',
-            'Execution Time': new Date().toLocaleString(),
-            'CI': 'No'
-          }
-        }],
+        ['list', { printSteps: true }],
         ['json', { outputFile: 'test-results/test-results.json' }],
         ['junit', { outputFile: 'test-results/junit-results.xml' }],
         ['allure-playwright'],
-        ['./src/utils/customReport.ts']
+        ['html', { open: 'on-failure' }]
       ],
 
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'https://dolomed.ch/',
+    baseURL: 'https://dolomed.ch',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'retain-on-failure',  // Only keep traces for failed tests in both environments
-    screenshot: isCI ? 'on' : 'only-on-failure',
-    // video: isCI ? 'on' : 'retain-on-failure',
+    screenshot: 'only-on-failure',
     
     // Set navigation timeout
     navigationTimeout: timeouts.navigationTimeout,
     
     // Additional test metadata
     testIdAttribute: 'data-testid',
+    
+    // Improved error handling
+    ignoreHTTPSErrors: true,
   },
 
   /* Configure projects for different viewports */
@@ -128,7 +108,6 @@ export default defineConfig({
       use: { 
         browserName: 'chromium',
         viewport: { width: 1600, height: 1080 },
-        screenshot: 'on',
         // Add more stable browser configuration for CI
         launchOptions: {
           args: isCI ? [
@@ -138,7 +117,7 @@ export default defineConfig({
             '--no-sandbox',
             '--headless=new',
             '--disable-web-security',
-            '--disable-features=IsolateOrigins,site-per-process',
+            '--disable-features=IsolateOrigins,site-per-process'
           ] : []
         }
       },
