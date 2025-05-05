@@ -50,10 +50,72 @@ pipeline {
         stage('Setup Git LFS') {
             steps {
                 sh '''
-                    # Install Git LFS using apt
+                    # Install Git LFS using apt with retry mechanism for lock issues
                     export DEBIAN_FRONTEND=noninteractive
-                    sudo -E apt-get update -y
-                    sudo -E apt-get install -y git-lfs
+                    
+                    # Function to wait for apt locks to be released
+                    wait_for_apt_locks() {
+                        echo "Waiting for apt locks to be released..."
+                        # Wait for apt-get lock
+                        while sudo lsof /var/lib/apt/lists/lock >/dev/null 2>&1; do
+                            echo "APT lists lock exists, waiting 5 seconds..."
+                            sleep 5
+                        done
+                        
+                        # Wait for dpkg lock
+                        while sudo lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+                            echo "DPKG lock-frontend exists, waiting 5 seconds..."
+                            sleep 5
+                        done
+                        
+                        # Wait for dpkg lock
+                        while sudo lsof /var/lib/dpkg/lock >/dev/null 2>&1; do
+                            echo "DPKG lock exists, waiting 5 seconds..."
+                            sleep 5
+                        done
+                        
+                        echo "Locks released, proceeding with apt operations"
+                    }
+                    
+                    # Try apt-get update with retry logic
+                    MAX_RETRIES=5
+                    RETRY_COUNT=0
+                    
+                    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+                        wait_for_apt_locks
+                        if sudo -E apt-get update -y; then
+                            echo "apt-get update successful"
+                            break
+                        else
+                            RETRY_COUNT=$((RETRY_COUNT+1))
+                            echo "apt-get update failed, retry $RETRY_COUNT of $MAX_RETRIES"
+                            sleep 10
+                        fi
+                    done
+                    
+                    if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                        echo "Failed to update apt after $MAX_RETRIES attempts"
+                        exit 1
+                    fi
+                    
+                    # Install git-lfs with retry logic
+                    RETRY_COUNT=0
+                    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+                        wait_for_apt_locks
+                        if sudo -E apt-get install -y git-lfs; then
+                            echo "git-lfs installation successful"
+                            break
+                        else
+                            RETRY_COUNT=$((RETRY_COUNT+1))
+                            echo "git-lfs installation failed, retry $RETRY_COUNT of $MAX_RETRIES"
+                            sleep 10
+                        fi
+                    done
+                    
+                    if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                        echo "Failed to install git-lfs after $MAX_RETRIES attempts"
+                        exit 1
+                    fi
                     
                     # Verify Git LFS installation
                     which git-lfs
