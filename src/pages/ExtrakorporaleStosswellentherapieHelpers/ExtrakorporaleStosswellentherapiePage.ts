@@ -34,7 +34,7 @@ export class ExtrakorporaleStosswellentherapiePage {
     }
 
     async navigateToPage() {
-        await this.page.goto('/extrakorporale-stosswellentherapie/');
+        await this.page.goto('https://dolomed.ch/extrakorporale-stosswellentherapie/');
         await this.page.waitForLoadState('networkidle');
     }
 

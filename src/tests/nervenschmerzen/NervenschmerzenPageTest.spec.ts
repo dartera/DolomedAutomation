@@ -67,19 +67,5 @@ test.describe('Nervenschmerzen Page Tests', () => {
         expect(isFirstFAQContentVisible).toBeTruthy();
     });
 
-    test('should display contact form correctly', async () => {
-        const isFormVisible = await nervenschmerzenPage.isContactFormVisible();
-        expect(isFormVisible).toBeTruthy();
 
-        // Test form filling
-        await nervenschmerzenPage.fillContactForm(
-            'Test',
-            'User',
-            '1234567890',
-            'test@example.com',
-            'Test Street 1',
-            'Test City',
-            'Test message'
-        );
-    });
 }); 

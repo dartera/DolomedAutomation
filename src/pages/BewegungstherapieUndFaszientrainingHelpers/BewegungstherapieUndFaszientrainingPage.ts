@@ -8,7 +8,7 @@ export class BewegungstherapieUndFaszientrainingPage {
     }
 
     async navigate() {
-        await this.page.goto('/bewegungstherapie-und-faszientraining/');
+        await this.page.goto('https://dolomed.ch/bewegungstherapie-und-faszientraining/');
     }
 
     async verifyPageTitle() {

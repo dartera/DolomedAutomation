@@ -9,7 +9,7 @@ export class ChronischenSchmerzenPage {
 
     // Navigation
     async navigate(lang: 'de' | 'fr' = 'de') {
-        const url = lang === 'de' ? '/chronischen-schmerzen/' : `/${lang}/chronischen-schmerzen/`;
+        const url = lang === 'de' ? 'https://dolomed.ch/chronischen-schmerzen/' : `https://dolomed.ch/${lang}/chronischen-schmerzen/`;
         await this.page.goto(url);
         // Wait for the page to be fully loaded
         await this.page.waitForLoadState('networkidle');

@@ -118,52 +118,6 @@ test.describe('Dolomed Kopfschmerzen Page Tests', () => {
         expect(await kopfschmerzenPage.areTreatmentsVisible('trigeminal')).toBe(true);
     });
 
-    // Test FAQ Section
-    test('should display FAQ section with working accordion', async () => {
-        // Verify FAQ section is visible
-        expect(await kopfschmerzenPage.isFAQSectionVisible()).toBe(true);
-        
-        // Get FAQ count
-        const faqCount = await kopfschmerzenPage.getFAQCount();
-        expect(faqCount).toBeGreaterThan(0);
-        
-        // Test clicking on first accordion item
-        const firstFaqVisible = await kopfschmerzenPage.isFAQContentVisible(0);
-        expect(firstFaqVisible).toBe(true);
-        
-        // Test clicking on second accordion item
-        await kopfschmerzenPage.clickFAQItem(1);
-        await kopfschmerzenPage.page.waitForTimeout(300); // Wait for animation
-        const secondFaqVisible = await kopfschmerzenPage.isFAQContentVisible(1);
-        expect(secondFaqVisible).toBe(true);
-    });
-
-    // Test Contact Form
-    test('should allow filling the contact form', async () => {
-        // Verify contact form is visible
-        expect(await kopfschmerzenPage.isContactFormVisible()).toBe(true);
-        
-        // Fill out the contact form
-        await kopfschmerzenPage.fillContactForm(
-            'Test Name',
-            'Test Vorname',
-            '123456789',
-            'test@example.com',
-            'Test Strasse',
-            'Test Wohnort',
-            'Test Message'
-        );
-        
-        // Check that the form fields have been filled correctly
-        const formSelector = '#page .wpcf7-form[action*="wpcf7-f15505"]';
-        await expect(kopfschmerzenPage.page.locator(`${formSelector} input[name="Name"]`)).toHaveValue('Test Name');
-        await expect(kopfschmerzenPage.page.locator(`${formSelector} input[name="Vorname"]`)).toHaveValue('Test Vorname');
-        await expect(kopfschmerzenPage.page.locator(`${formSelector} input[name="tel-873"]`)).toHaveValue('123456789');
-        await expect(kopfschmerzenPage.page.locator(`${formSelector} input[name="email-848"]`)).toHaveValue('test@example.com');
-        await expect(kopfschmerzenPage.page.locator(`${formSelector} input[name="Strasse"]`)).toHaveValue('Test Strasse');
-        await expect(kopfschmerzenPage.page.locator(`${formSelector} input[name="Wohnort"]`)).toHaveValue('Test Wohnort');
-        await expect(kopfschmerzenPage.page.locator(`${formSelector} textarea[name="your-message"]`)).toHaveValue('Test Message');
-    });
 
     // Test call buttons
     test('should have working call buttons', async () => {

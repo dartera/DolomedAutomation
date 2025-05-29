@@ -33,7 +33,7 @@ export class LasertherapiePage {
     }
 
     async navigate(lang: string = 'de') {
-        const url = lang === 'de' ? '/lasertherapie/' : `/${lang}/lasertherapie/`;
+        const url = lang === 'de' ? 'https://dolomed.ch/lasertherapie/' : `https://dolomed.ch/${lang}/lasertherapie/`;
         await this.page.goto(url);
     }
 

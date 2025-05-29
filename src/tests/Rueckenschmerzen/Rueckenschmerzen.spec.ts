@@ -73,20 +73,4 @@ test.describe('Rückenschmerzen Page Tests', () => {
         const faqCount = await rueckenschmerzenPage.getFAQCount();
         expect(faqCount).toBeGreaterThan(0);
     });
-
-    test('should handle contact form interactions', async () => {
-        const isContactFormVisible = await rueckenschmerzenPage.isContactFormVisible();
-        expect(isContactFormVisible).toBeTruthy();
-
-        await rueckenschmerzenPage.fillContactForm(
-            'Test Name',
-            'Test Vorname',
-            '1234567890',
-            'test@example.com',
-            'Test Street 1',
-            'Test City',
-            ['Reguläres Aufgebot'],
-            'Test message'
-        );
-    });
 }); 

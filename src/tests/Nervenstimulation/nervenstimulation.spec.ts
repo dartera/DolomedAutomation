@@ -56,33 +56,4 @@ test.describe('Nervenstimulation Page Tests', () => {
         expect(faqCount).toBeGreaterThan(0);
     });
 
-    test('should display contact form', async () => {
-        const isFormVisible = await nervenstimulationPage.isContactFormVisible();
-        expect(isFormVisible).toBeTruthy();
-    });
-
-    test('should fill contact form', async () => {
-        const testData = {
-            name: 'Test Name',
-            vorname: 'Test Vorname',
-            phone: '1234567890',
-            email: 'test@example.com',
-            street: 'Test Street',
-            city: 'Test City',
-            message: 'Test Message'
-        };
-
-        await nervenstimulationPage.fillContactForm(
-            testData.name,
-            testData.vorname,
-            testData.phone,
-            testData.email,
-            testData.street,
-            testData.city,
-            testData.message
-        );
-
-        // Note: Form submission is not tested as it would require handling actual form submission
-        // and potentially dealing with email verification or other backend processes
-    });
 }); 

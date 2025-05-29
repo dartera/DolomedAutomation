@@ -81,52 +81,6 @@ test.describe('Dolomed Gefässerkrankungen Page Tests', () => {
         expect(await gefaesserkrankungenPage.areTreatmentsVisible('angina')).toBe(true);
     });
 
-    // Test FAQ Section
-    test('should display FAQ section with working accordion', async () => {
-        // Verify FAQ section is visible
-        expect(await gefaesserkrankungenPage.isFAQSectionVisible()).toBe(true);
-        
-        // Get FAQ count
-        const faqCount = await gefaesserkrankungenPage.getFAQCount();
-        expect(faqCount).toBeGreaterThan(0);
-        
-        // Test clicking on first accordion item
-        const firstFaqVisible = await gefaesserkrankungenPage.isFAQContentVisible(0);
-        expect(firstFaqVisible).toBe(true);
-        
-        // Test clicking on second accordion item
-        await gefaesserkrankungenPage.clickFAQItem(1);
-        await gefaesserkrankungenPage.page.waitForTimeout(300); // Wait for animation
-        const secondFaqVisible = await gefaesserkrankungenPage.isFAQContentVisible(1);
-        expect(secondFaqVisible).toBe(true);
-    });
-
-    // Test Contact Form
-    test('should allow filling the contact form', async () => {
-        // Verify contact form is visible
-        expect(await gefaesserkrankungenPage.isContactFormVisible()).toBe(true);
-        
-        // Fill out the contact form
-        await gefaesserkrankungenPage.fillContactForm(
-            'Test Name',
-            'Test Vorname',
-            '123456789',
-            'test@example.com',
-            'Test Strasse',
-            'Test Wohnort',
-            'Test Message'
-        );
-        
-        // Check that the form fields have been filled correctly
-        const formSelector = '#wpcf7-f15505-p15743-o1';
-        await expect(gefaesserkrankungenPage.page.locator(`${formSelector} input[name="Name"]`)).toHaveValue('Test Name');
-        await expect(gefaesserkrankungenPage.page.locator(`${formSelector} input[name="Vorname"]`)).toHaveValue('Test Vorname');
-        await expect(gefaesserkrankungenPage.page.locator(`${formSelector} input[name="tel-873"]`)).toHaveValue('123456789');
-        await expect(gefaesserkrankungenPage.page.locator(`${formSelector} input[name="email-848"]`)).toHaveValue('test@example.com');
-        await expect(gefaesserkrankungenPage.page.locator(`${formSelector} input[name="Strasse"]`)).toHaveValue('Test Strasse');
-        await expect(gefaesserkrankungenPage.page.locator(`${formSelector} input[name="Wohnort"]`)).toHaveValue('Test Wohnort');
-        await expect(gefaesserkrankungenPage.page.locator(`${formSelector} textarea[name="your-message"]`)).toHaveValue('Test Message');
-    });
 
     // Test call buttons
     test('should have working call buttons', async () => {

@@ -25,7 +25,7 @@ export class StammzellentherapiePage {
     }
 
     async navigate(lang: string = 'de') {
-        const url = lang === 'de' ? '/stammzellentherapie/' : `/${lang}/stammzellentherapie/`;
+        const url = lang === 'de' ? 'https://dolomed.ch/stammzellentherapie/' : `https://dolomed.ch/${lang}/stammzellentherapie/`;
         await this.page.goto(url);
     }
 

@@ -8,7 +8,7 @@ export class TopischeTherapieMitHochkonzentriertemCapsaicinPage {
     }
 
     async navigate() {
-        await this.page.goto('/topische-therapie-mit-hochkonzentriertem-capsaicin/');
+        await this.page.goto('https://dolomed.ch/topische-therapie-mit-hochkonzentriertem-capsaicin/');
     }
 
     async verifyPageTitle() {

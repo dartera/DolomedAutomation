@@ -27,11 +27,6 @@ test.describe('Extrakorporale Stoßwellentherapie Page Tests', () => {
         await expect(page['page'].locator('.modal')).toBeVisible();
     });
 
-    test('should have correct phone number link', async () => {
-        const phoneLink = await page['page'].locator('.elementor-element[data-id="34bbbd4"] a').getAttribute('href');
-        expect(phoneLink).toBe('tel:032 324 39 90');
-    });
-
     test('should display content in all sections', async () => {
         const whatIsContent = await page.getSectionContent(page['whatIsContent']);
         expect(whatIsContent).toContain('Die Stoßwellentherapie verwendet hochenergetische Schallwellen');

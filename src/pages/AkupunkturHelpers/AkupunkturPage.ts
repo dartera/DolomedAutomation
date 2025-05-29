@@ -9,7 +9,9 @@ export class AkupunkturPage {
 
     // Navigation
     async navigate(lang: 'de' | 'fr' = 'de') {
-        const url = lang === 'de' ? '/natuerliche-linderung-durch-akupunktur/' : `/${lang}/natuerliche-linderung-durch-akupunktur/`;
+        const url = lang === 'de'
+            ? 'https://dolomed.ch/natuerliche-linderung-durch-akupunktur/'
+            : 'https://dolomed.ch/fr/natuerliche-linderung-durch-akupunktur/';
         await this.page.goto(url);
         // Wait for the page to be fully loaded
         await this.page.waitForLoadState('networkidle');

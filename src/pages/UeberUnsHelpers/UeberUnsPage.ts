@@ -8,7 +8,7 @@ export class UeberUnsPage {
     }
 
     async navigate() {
-        await this.page.goto('/ueber-uns/');
+        await this.page.goto('https://dolomed.ch/ueber-uns/');
     }
 
     async verifyPageTitle() {

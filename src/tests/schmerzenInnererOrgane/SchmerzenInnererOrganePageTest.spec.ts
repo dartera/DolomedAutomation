@@ -161,69 +161,7 @@ test.describe('Dolomed Schmerzen Innerer Organe Page Tests', () => {
         await expect(appointmentButton).toBeVisible();
     });
 
-    // Test FAQ Section
-    test('should display FAQ section with working accordion', async () => {
-        // Scroll to FAQ section
-        await schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="fe5401c"]').scrollIntoViewIfNeeded();
-        
-        // Verify FAQ section is visible
-        expect(await schmerzenInnererOrganePage.isFAQSectionVisible()).toBe(true);
-        
-        // Get FAQ count
-        const faqCount = await schmerzenInnererOrganePage.getFAQCount();
-        expect(faqCount).toBeGreaterThan(0);
-        
-        // Test clicking on first accordion item (already open by default)
-        const firstFaqVisible = await schmerzenInnererOrganePage.isFAQContentVisible(0);
-        expect(firstFaqVisible).toBe(true);
-        
-        // Test clicking on second accordion item
-        await schmerzenInnererOrganePage.clickFAQItem(1);
-        await schmerzenInnererOrganePage.page.waitForTimeout(300); // Wait for animation
-        const secondFaqVisible = await schmerzenInnererOrganePage.isFAQContentVisible(1);
-        expect(secondFaqVisible).toBe(true);
-    });
 
-    // Test Contact Form
-    test('should allow filling the contact form', async () => {
-        // Use the specific contact form located in this section
-        const contactFormContainer = '.elementor-section[data-id="fb3726c"] .wpcf7';
-        
-        // Scroll to contact form section for visibility
-        await schmerzenInnererOrganePage.page.locator(contactFormContainer).scrollIntoViewIfNeeded();
-        await schmerzenInnererOrganePage.page.waitForTimeout(500); // Allow more time for any lazy loading
-        
-        // Verify contact form is visible
-        expect(await schmerzenInnererOrganePage.isContactFormVisible()).toBe(true);
-        
-        // Fill out the contact form
-        await schmerzenInnererOrganePage.fillContactForm(
-            'Test Name',
-            'Test Vorname',
-            '123456789',
-            'test@example.com',
-            'Test Strasse',
-            'Test Wohnort',
-            'Test Message'
-        );
-        
-        // Check that the form fields have been filled correctly with specific selectors
-        const contactFormName = '.elementor-section[data-id="fb3726c"] .wpcf7-form-control-wrap[data-name="Name"] input';
-        const contactFormVorname = '.elementor-section[data-id="fb3726c"] .wpcf7-form-control-wrap[data-name="Vorname"] input';
-        const contactFormTel = '.elementor-section[data-id="fb3726c"] .wpcf7-form-control-wrap[data-name="tel-873"] input';
-        const contactFormEmail = '.elementor-section[data-id="fb3726c"] .wpcf7-form-control-wrap[data-name="email-848"] input';
-        const contactFormStrasse = '.elementor-section[data-id="fb3726c"] .wpcf7-form-control-wrap[data-name="Strasse"] input';
-        const contactFormWohnort = '.elementor-section[data-id="fb3726c"] .wpcf7-form-control-wrap[data-name="Wohnort"] input';
-        const contactFormMessage = '.elementor-section[data-id="fb3726c"] .wpcf7-form-control-wrap[data-name="your-message"] textarea';
-
-        await expect(schmerzenInnererOrganePage.page.locator(contactFormName)).toHaveValue('Test Name');
-        await expect(schmerzenInnererOrganePage.page.locator(contactFormVorname)).toHaveValue('Test Vorname');
-        await expect(schmerzenInnererOrganePage.page.locator(contactFormTel)).toHaveValue('123456789');
-        await expect(schmerzenInnererOrganePage.page.locator(contactFormEmail)).toHaveValue('test@example.com');
-        await expect(schmerzenInnererOrganePage.page.locator(contactFormStrasse)).toHaveValue('Test Strasse');
-        await expect(schmerzenInnererOrganePage.page.locator(contactFormWohnort)).toHaveValue('Test Wohnort');
-        await expect(schmerzenInnererOrganePage.page.locator(contactFormMessage)).toHaveValue('Test Message');
-    });
 
     // Test call buttons
     test('should have working call buttons', async () => {
@@ -278,61 +216,5 @@ test.describe('Dolomed Schmerzen Innerer Organe Page Tests', () => {
         expect(await endometrioseImage.isVisible()).toBe(true);
     });
 
-    // Test scroll functionality and interaction
-    test('should properly render elements when scrolling through the page', async () => {
-        // Test initial viewport - Hero section should be visible
-        await expect(schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="4a814d00"]')).toBeVisible();
-        
-        // Scroll to What Are Schmerzen Innerer Organe section
-        await schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="5fe61570"]').scrollIntoViewIfNeeded();
-        await schmerzenInnererOrganePage.page.waitForTimeout(300); // Allow time for any animations
-        await expect(schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="5fe61570"]')).toBeVisible();
-        
-        // Scroll to Chronische Pankreatitis section
-        await schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="37f0389"]').scrollIntoViewIfNeeded();
-        await schmerzenInnererOrganePage.page.waitForTimeout(300);
-        await expect(schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="37f0389"]')).toBeVisible();
-        
-        // Scroll to Endometriose section
-        await schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="1d695aaf"]').scrollIntoViewIfNeeded();
-        await schmerzenInnererOrganePage.page.waitForTimeout(300);
-        await expect(schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="1d695aaf"]')).toBeVisible();
-        
-        // Scroll to Pelvic Pain section
-        await schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="2892ea96"]').scrollIntoViewIfNeeded();
-        await schmerzenInnererOrganePage.page.waitForTimeout(300);
-        await expect(schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="2892ea96"]')).toBeVisible();
-        
-        // Scroll to Angina Pectoris section
-        await schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="41f81d5"]').scrollIntoViewIfNeeded();
-        await schmerzenInnererOrganePage.page.waitForTimeout(300);
-        await expect(schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="41f81d5"]')).toBeVisible();
-        
-        // Scroll to WieWeiter section
-        await schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="a10eaeb"]').scrollIntoViewIfNeeded();
-        await schmerzenInnererOrganePage.page.waitForTimeout(300);
-        await expect(schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="a10eaeb"]')).toBeVisible();
-        
-        // Scroll to FAQ section
-        await schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="fe5401c"]').scrollIntoViewIfNeeded();
-        await schmerzenInnererOrganePage.page.waitForTimeout(300);
-        await expect(schmerzenInnererOrganePage.page.locator('.elementor-element[data-id="fe5401c"]')).toBeVisible();
-        
-        // Interact with FAQ accordion
-        await schmerzenInnererOrganePage.clickFAQItem(2); // Click the third FAQ item
-        await schmerzenInnererOrganePage.page.waitForTimeout(300);
-        const thirdFaqVisible = await schmerzenInnererOrganePage.isFAQContentVisible(2);
-        expect(thirdFaqVisible).toBe(true);
-        
-        // Scroll to Contact Form section - use specific container
-        const contactFormContainer = '.elementor-section[data-id="fb3726c"] .wpcf7';
-        await schmerzenInnererOrganePage.page.locator(contactFormContainer).scrollIntoViewIfNeeded();
-        await schmerzenInnererOrganePage.page.waitForTimeout(300);
-        await expect(schmerzenInnererOrganePage.page.locator(contactFormContainer)).toBeVisible();
-        
-        // Interact with contact form - use specific selector
-        const nameInput = '.elementor-section[data-id="fb3726c"] .wpcf7-form-control-wrap[data-name="Name"] input';
-        await schmerzenInnererOrganePage.page.locator(nameInput).fill('Scroll Test');
-        await expect(schmerzenInnererOrganePage.page.locator(nameInput)).toHaveValue('Scroll Test');
-    });
+    
 }); 

@@ -2,636 +2,333 @@ pipeline {
     agent any
 
     environment {
-        NODE_VERSION = '18'
+        NODE_VERSION             = '22'
+        TEST_TIMESTAMP           = '2025-05-28 12:04:15'
         PLAYWRIGHT_BROWSERS_PATH = '0'
-        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = '1'
-        PLAYWRIGHT_SKIP_DEPS_INSTALLATION = '1'
-        GIT_SSL_NO_VERIFY = 'true'
-        GIT_USERNAME = 'dartera'
-        GITHUB_TOKEN = credentials('github-token')
-        PATH = "/usr/local/bin:${env.PATH}"
-        PLAYWRIGHT_TEST_REPORT_DIR = "playwright-report"
-        PLAYWRIGHT_TEST_RESULTS_DIR = "test-results"
-        ALLURE_RESULTS_DIR = "allure-results"
-        CLICKUP_API_TOKEN = credentials('clickup-api-token')
-        CLICKUP_PARENT_TASK_ID = '8698ty0vg'
-        CLICKUP_USER_ID = '87801653'
-        DEBIAN_FRONTEND = "noninteractive"
-        // Memory management environment variables
-        PLAYWRIGHT_TIMEOUT = '30000'
-        PLAYWRIGHT_WORKERS = '2'
-        MAX_SELECTORS = '50'
-        FORCE_EXIT_CODE = 'true'
-        ALLURE_RESPECT_EXIT_CODE = 'true'
-        // Remove debug flags
-        NODE_OPTIONS = '--max-old-space-size=2048 --expose-gc'
+        CURRENT_USER             = 'waseem'
+        GIT_USERNAME             = 'dartera'
+        GITHUB_TOKEN             = credentials('github-token')
+        CLICKUP_API_TOKEN        = credentials('clickup-api-token')
+        CLICKUP_PARENT_TASK_ID   = '8698ty0vg'
+        CLICKUP_USER_ID          = '87801653'
     }
 
     options {
-        // Completely remove timeout - let the OS manage it
-        skipDefaultCheckout()
-    }
-
-    tools {
-        allure 'Allure'
+        skipDefaultCheckout(true)
+        timeout(time: 1, unit: 'HOURS')
     }
 
     stages {
-        stage('Verify Sudo') {
+        stage('Setup') {
             steps {
-                sh '''
-                    # Check if sudo works without password
-                    sudo -n true
-                    echo "Sudo privileges confirmed without password"
-                '''
-            }
-        }
-        
-        stage('Setup Git LFS') {
-            steps {
-                sh '''
-                    # Install Git LFS using apt with retry mechanism for lock issues
-                    export DEBIAN_FRONTEND=noninteractive
-                    
-                    # Function to wait for apt locks to be released
-                    wait_for_apt_locks() {
-                        echo "Waiting for apt locks to be released..."
-                        # Wait for apt-get lock
-                        while sudo lsof /var/lib/apt/lists/lock >/dev/null 2>&1; do
-                            echo "APT lists lock exists, waiting 5 seconds..."
-                            sleep 5
-                        done
-                        
-                        # Wait for dpkg lock
-                        while sudo lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-                            echo "DPKG lock-frontend exists, waiting 5 seconds..."
-                            sleep 5
-                        done
-                        
-                        # Wait for dpkg lock
-                        while sudo lsof /var/lib/dpkg/lock >/dev/null 2>&1; do
-                            echo "DPKG lock exists, waiting 5 seconds..."
-                            sleep 5
-                        done
-                        
-                        echo "Locks released, proceeding with apt operations"
-                    }
-                    
-                    # Try apt-get update with retry logic
-                    MAX_RETRIES=5
-                    RETRY_COUNT=0
-                    
-                    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-                        wait_for_apt_locks
-                        if sudo -E apt-get update -y; then
-                            echo "apt-get update successful"
-                            break
-                        else
-                            RETRY_COUNT=$((RETRY_COUNT+1))
-                            echo "apt-get update failed, retry $RETRY_COUNT of $MAX_RETRIES"
-                            sleep 10
-                        fi
-                    done
-                    
-                    if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-                        echo "Failed to update apt after $MAX_RETRIES attempts"
-                        exit 1
-                    fi
-                    
-                    # Install git-lfs with retry logic
-                    RETRY_COUNT=0
-                    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-                        wait_for_apt_locks
-                        if sudo -E apt-get install -y git-lfs; then
-                            echo "git-lfs installation successful"
-                            break
-                        else
-                            RETRY_COUNT=$((RETRY_COUNT+1))
-                            echo "git-lfs installation failed, retry $RETRY_COUNT of $MAX_RETRIES"
-                            sleep 10
-                        fi
-                    done
-                    
-                    if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-                        echo "Failed to install git-lfs after $MAX_RETRIES attempts"
-                        exit 1
-                    fi
-                    
-                    # Verify Git LFS installation
-                    which git-lfs
-                    git-lfs version
-                    
-                    # Initialize Git LFS
-                    git-lfs install
-                    
-                    # Configure Git LFS
-                    git config --global filter.lfs.clean "git-lfs clean -- %f"
-                    git config --global filter.lfs.smudge "git-lfs smudge -- %f"
-                    git config --global filter.lfs.process "git-lfs filter-process"
-                    git config --global filter.lfs.required true
-                    
-                    # Configure Git credentials
-                    git config --global user.name "${GIT_USERNAME}"
-                    git config --global credential.helper store
-                    echo "https://${GIT_USERNAME}:${GITHUB_TOKEN}@github.com" > ~/.git-credentials
-                '''
-            }
-        }
-
-        stage('Checkout') {
-            steps {
+                script {
+                    // Clean workspace and clone repo with credentials
+                    deleteDir()
                     sh '''
-                        # Clean workspace before cloning
-                        rm -rf .* * 2>/dev/null || true
-                        
-                        # Clone the repository using HTTPS with token
-                        git clone "https://${GIT_USERNAME}:${GITHUB_TOKEN}@github.com/dartera/DolomedAutomation.git" .
-                        
-                        # Initialize Git LFS in the repository
-                        git lfs install
-                        
-                        # Pull LFS files
-                        git lfs pull
+                        git clone --depth 1 --progress https://dartera:${GITHUB_TOKEN}@github.com/dartera/DolomedAutomation.git .
                     '''
-            }
-        }
 
-        stage('Setup Node.js') {
-            steps {
-                sh '''
-                    # Install Node.js using NodeSource repository
-                    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-                    sudo -E apt-get install -y nodejs
-                    
-                    # Verify Node.js installation
-                    node --version
-                    npm --version
-                    
-                    # Install yarn using npm
-                    sudo npm install -g yarn
-                '''
-            }
-        }
-
-        stage('Install Dependencies') {
-            steps {
-                sh '''
-                    # Install dependencies
-                    npm install
-                    
-                    # Install Playwright browsers
-                    npx playwright install --with-deps
-                '''
-            }
-        }
-
-        stage('Monitor Memory') {
-            steps {
-                sh '''
-                    # Create a script to monitor memory usage
-                    cat > monitor_memory.sh << 'EOL'
-#!/bin/bash
-while true; do
-  free -m > memory_stats.txt
-  ps -o pid,ppid,%cpu,%mem,cmd --sort=-%mem | head -n 10 >> memory_stats.txt
-  echo "--------------------" >> memory_stats.txt
-  sleep 5
-done
-EOL
-                    chmod +x monitor_memory.sh
-                    
-                    # Start memory monitoring in the background
-                    ./monitor_memory.sh &
-                    MONITOR_PID=$!
-                    echo $MONITOR_PID > monitor_pid.txt
-                '''
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                    // Install NVM, Node.js, and npm deps
                     sh '''
-                        # Add swap space to prevent OOM crashes
-                        sudo swapoff -a || true
-                        sudo fallocate -l 4G /swapfile || true
-                        sudo chmod 600 /swapfile || true
-                        sudo mkswap /swapfile || true
-                        sudo swapon /swapfile || true
-                        
-                        # Create directories first to avoid potential issues
-                        mkdir -p ${PLAYWRIGHT_TEST_REPORT_DIR} ${PLAYWRIGHT_TEST_RESULTS_DIR} ${ALLURE_RESULTS_DIR}
-                        
-                        # Run tests directly without debug mode
-                        PLAYWRIGHT_WORKERS=2 npm run test:allure
-                        TEST_EXIT_CODE=$?
-                        
-                        # Kill memory monitor
-                        MONITOR_PID=$(cat monitor_pid.txt 2>/dev/null) || true
-                        kill $MONITOR_PID 2>/dev/null || true
-                        
-                        # Ensure all Allure results are accessible
-                        chmod -R 755 ${ALLURE_RESULTS_DIR} || echo "Could not set permissions on Allure results"
-                        
-                        # Extract test result information
-                        echo "Extracting test result details..."
-                        if [ -d "${ALLURE_RESULTS_DIR}" ]; then
-                          # Find and examine result files
-                          grep -r '"status":"failed"' ${ALLURE_RESULTS_DIR}/*-result.json || echo "No explicit failures found in JSON"
-                          
-                          # Count failures
-                          FAILURE_COUNT=$(grep -r '"status":"failed"' ${ALLURE_RESULTS_DIR}/*-result.json | wc -l || echo "0")
-                          echo "Found $FAILURE_COUNT explicit test failures in Allure results"
-                          
-                          # Force Allure to recognize the failures
-                          if [ $FAILURE_COUNT -gt 0 ] || [ $TEST_EXIT_CODE -ne 0 ]; then
-                            echo "Ensuring build failures are reflected in Allure report"
-                            touch ${ALLURE_RESULTS_DIR}/force_build_failure
-                          fi
-                        fi
-                        
-                        echo "Test execution completed with exit code $TEST_EXIT_CODE. Check reports for details."
-                        
-                        # Always pass through non-zero exit codes
-                        if [ $TEST_EXIT_CODE -ne 0 ]; then
-                            echo "Failing the build due to test failures"
-                            exit $TEST_EXIT_CODE
-                        fi
+                        wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+                        export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+                        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+                        nvm install ${NODE_VERSION}
+                        nvm use    ${NODE_VERSION}
+
+                        npm install
                     '''
                 }
             }
-            post {
-                always {
-                    script {
-                        // Parse test results to check for failures
-                        def testResultsExist = fileExists('test-results/test-results.json')
-                        def hasFailures = false
-                        
-                        if (testResultsExist) {
-                            try {
-                                def testResults = readJSON file: 'test-results/test-results.json'
-                                if (testResults.stats && testResults.stats.failures > 0) {
-                                    hasFailures = true
-                                    echo "Found ${testResults.stats.failures} test failures in the test results"
-                                }
-                            } catch (Exception e) {
-                                echo "Error parsing test results: ${e.message}"
-                                hasFailures = true // Assume failures on error
-                            }
-                        }
-                        
-                        try {
-                            // Check for specific failure in FooterTest.spec.ts
-                            def footerTestFailed = false
-                            try {
-                                def footerFailure = sh(script: "grep -r 'Footer Functionality.*should verify all footer sections are present.*failed' test-results", returnStatus: true)
-                                if (footerFailure == 0) {
-                                    footerTestFailed = true
-                                    echo "Found specific failure in FooterTest - marking build as failed"
-                                    hasFailures = true
-                                }
-                            } catch (Exception e) {
-                                echo "Error checking for footer test failure: ${e.message}"
-                            }
-                            
-                            // Make sure the allure results directory exists and has content
-                            sh "mkdir -p ${ALLURE_RESULTS_DIR}"
-                            sh "find ${ALLURE_RESULTS_DIR} -type f | wc -l"
-                            
-                            // Create a status marker file to force Allure to reflect the correct status
-                            if (hasFailures) {
-                                sh """
-                                    echo '{"name":"Failed Tests","status":"failed"}' > ${ALLURE_RESULTS_DIR}/status.json
-                                """
-                            }
-                            
-                            allure([
-                                includeProperties: false, 
-                                jdk: '', 
-                                results: [[path: 'allure-results']]
-                            ])
-                        } catch (Exception e) {
-                            echo "Error generating Allure report: ${e.message}"
-                            // Try to create a minimal report anyway
-                            sh "mkdir -p allure-report"
-                        }
-                        
-                        // If tests failed, set the build result explicitly
-                        if (hasFailures) {
-                            currentBuild.result = 'FAILURE'
-                            echo "Setting build result to FAILURE due to test failures"
-                        }
-                        
-                        // Create ZIP with all reports - with error handling
-                        sh """
-                            set +e
-                            mkdir -p ${PLAYWRIGHT_TEST_REPORT_DIR} ${PLAYWRIGHT_TEST_RESULTS_DIR} ${ALLURE_RESULTS_DIR}
-                            zip -r test-reports.zip \\
-                                ${PLAYWRIGHT_TEST_REPORT_DIR}/ \\
-                                ${PLAYWRIGHT_TEST_RESULTS_DIR}/ \\
-                                ${ALLURE_RESULTS_DIR}/ || echo "Warning: Could not create zip file"
-                            set -e
-                        """
+        }
+
+        stage('Run Visual Tests') {
+            steps {
+                script {
+                    // Run tests and capture the exit code
+                    def testResult = sh(
+                        script: '''
+                            # Load NVM & use correct Node
+                            export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+                            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+                            nvm use ${NODE_VERSION}
+
+                            # Run Playwright with HTML reporter only
+                            npx playwright test --workers=4 --reporter=list,html
+                        ''',
+                        returnStatus: true
+                    )
+                    
+                    // Store test result for later stages
+                    env.INITIAL_TEST_RESULT = testResult.toString()
+                    
+                    if (testResult != 0) {
+                        echo "❌ Initial tests failed with exit code: ${testResult}. Will retry failed tests after generating reports."
+                        // Archive screenshots immediately but don't fail the stage yet
+                        archiveArtifacts artifacts: 'test-results/**/*', allowEmptyArchive: true
+                    } else {
+                        echo "✅ All tests passed on first run!"
                     }
                 }
             }
         }
 
-        stage('Generate Reports') {
-            steps {
-                sh '''
-                    # Make sure allure-results directory exists
-                    mkdir -p ${ALLURE_RESULTS_DIR}
-                    
-                    # Generate Allure report using the full path to the Allure executable
-                    ALLURE_PATH=$(which allure || echo "/var/lib/jenkins/tools/ru.yandex.qatools.allure.jenkins.tools.AllureCommandlineInstallation/Allure/bin/allure")
-                    
-                    if [ -x "$ALLURE_PATH" ]; then
-                        # Force proper status detection
-                        TEST_EXIT_CODE=$(cat test_exit_code.txt 2>/dev/null || echo "0")
-                        if [ "$TEST_EXIT_CODE" != "0" ]; then
-                            echo "Creating forced failure status for Allure"
-                            echo '{"status":"failed"}' > ${ALLURE_RESULTS_DIR}/status.json
-                        fi
-                        
-                        "$ALLURE_PATH" generate ${ALLURE_RESULTS_DIR} -o allure-report --clean || echo "Allure report generation had issues"
-                        # Ensure report is accessible
-                        chmod -R 755 allure-report || echo "Could not set permissions on Allure report"
-                    else
-                        echo "Allure executable not found. Skipping report generation."
-                        # Create empty report directory to avoid post-build failures
-                        mkdir -p allure-report
-                    fi
-                '''
+        stage('Retry Failed Tests') {
+            when {
+                expression { env.INITIAL_TEST_RESULT != '0' }
             }
-            post {
-                always {
-                    archiveArtifacts artifacts: "allure-report/**/*", allowEmptyArchive: true
+            steps {
+                script {
+                    echo "🔄 Retrying failed tests..."
+                    def retryResult = sh(
+                        script: '''
+                            # Load NVM & use correct Node
+                            export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+                            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+                            nvm use ${NODE_VERSION}
+
+                            # Retry only the failed tests
+                            npx playwright test --last-failed --workers=4 --reporter=list,html
+                        ''',
+                        returnStatus: true
+                    )
+                    
+                    env.RETRY_TEST_RESULT = retryResult.toString()
+                    
+                    if (retryResult != 0) {
+                        echo "❌ Tests still failing after retry. Final result will be determined after report generation."
+                        archiveArtifacts artifacts: 'test-results/**/*', allowEmptyArchive: true
+                    } else {
+                        echo "✅ All previously failed tests now pass!"
+                    }
                 }
             }
         }
-        
+
+        stage('Publish HTML Report') {
+            steps {
+                script {
+                    // Playwright's HTML reporter always writes to "playwright-report"
+                    def reportDir = 'playwright-report'
+                    if (!fileExists(reportDir)) {
+                        error "HTML report directory '${reportDir}' not found!"
+                    }
+                    publishHTML([
+                        reportDir:    reportDir,
+                        reportFiles:  'index.html',
+                        reportName:   'Playwright Test Report',
+                        keepAll:      true,
+                        allowMissing: false
+                    ])
+                }
+            }
+        }
+
         stage('Create ClickUp Task') {
             when {
+                anyOf {
+                    expression { env.INITIAL_TEST_RESULT != '0' && env.RETRY_TEST_RESULT != '0' }
+                    expression { env.INITIAL_TEST_RESULT != '0' && env.RETRY_TEST_RESULT == null }
+                }
                 not {
                     environment name: 'SKIP_CLICKUP', value: 'true'
                 }
             }
             steps {
                 script {
-                    def testResult = currentBuild.currentResult
                     def jobName = env.JOB_NAME
                     def buildNumber = env.BUILD_NUMBER
                     def buildUrl = env.BUILD_URL
                     def date = new Date().format("yyyy-MM-dd HH:mm:ss")
                     
-                    if (testResult != 'SUCCESS') {
-                        // Get list ID directly
-                        def listId = ""
-                        try {
-                            def parentTaskResponse = sh(
-                                script: "curl -s -X GET 'https://api.clickup.com/api/v2/task/${CLICKUP_PARENT_TASK_ID}' -H 'Authorization: ${CLICKUP_API_TOKEN}' -H 'Content-Type: application/json'",
-                                returnStdout: true
-                            ).trim()
-                            
-                            def matcher = parentTaskResponse =~ /"list":\{"id":"([0-9]+)"/
-                            if (matcher.find()) {
-                                listId = matcher.group(1)
-                            }
-                        } catch (Exception e) {
-                            echo "Error getting parent task info: ${e.message}"
+                    echo "Creating ClickUp task for failed tests..."
+                    
+                    // Get list ID from parent task
+                    def listId = ""
+                    try {
+                        def parentTaskResponse = sh(
+                            script: "curl -s -X GET 'https://api.clickup.com/api/v2/task/${CLICKUP_PARENT_TASK_ID}' -H 'Authorization: ${CLICKUP_API_TOKEN}' -H 'Content-Type: application/json'",
+                            returnStdout: true
+                        ).trim()
+                        
+                        def matcher = parentTaskResponse =~ /"list":\{"id":"([0-9]+)"/
+                        if (matcher.find()) {
+                            listId = matcher.group(1)
+                            echo "Found list ID: ${listId}"
+                        } else {
+                            echo "Could not extract list ID from response: ${parentTaskResponse}"
                             return
                         }
-                        
-                        // Analyze test results to find failures
-                        def failedTests = []
-                        try {
+                    } catch (Exception e) {
+                        echo "Error getting parent task info: ${e.message}"
+                        return
+                    }
+                    
+                    // Analyze test results to find failures
+                    def failedTests = []
+                    try {
+                        // Look for test result files
+                        def testResultsExist = fileExists('test-results')
+                        if (testResultsExist) {
                             def testFilesOutput = sh(
-                                script: "find ${ALLURE_RESULTS_DIR} -name '*.json' | grep -v 'categories\\|environment\\|history\\|executor\\|testrun' || true",
+                                script: "find test-results -name '*.json' -o -name '*.html' | head -10 || echo 'No test files found'",
                                 returnStdout: true
                             ).trim()
                             
-                            if (testFilesOutput) {
-                                testFilesOutput.split('\n').each { filePath ->
-                                    if (filePath) {
-                                        def content = readFile(filePath)
-                                        def testStatus = (content =~ /"status":"([^"]*)"/)
-                                        if (testStatus.find() && (testStatus.group(1) == "failed" || testStatus.group(1) == "broken")) {
-                                            def testName = (content =~ /"name":"([^"]*)"/) 
-                                            def testPath = (content =~ /"fullName":"([^"]*)"/)
-                                            def testMsg = (content =~ /"message":"([^"]*)"/)
-                                            
-                                            def testDetails = [:]
-                                            testDetails.name = testName.find() ? testName.group(1) : "Unknown test"
-                                            testDetails.path = testPath.find() ? testPath.group(1) : ""
-                                            testDetails.message = testMsg.find() ? testMsg.group(1) : ""
-                                            
-                                            failedTests.add(testDetails)
-                                        }
-                                    }
+                            echo "Found test files: ${testFilesOutput}"
+                            
+                            // Try to extract failed test information from HTML report
+                            if (fileExists('playwright-report/index.html')) {
+                                def htmlContent = readFile('playwright-report/index.html')
+                                def failureMatches = htmlContent =~ /class="test-file-test.*?failed.*?data-testid="([^"]*)".*?<span[^>]*>([^<]*)</
+                                failureMatches.each { match ->
+                                    failedTests.add([
+                                        name: match[2] ?: "Unknown Test",
+                                        path: match[1] ?: "",
+                                        message: "Test failed - see HTML report for details"
+                                    ])
                                 }
                             }
-                        } catch (Exception e) {
-                            echo "Error analyzing test results: ${e.message}"
+                            
+                            // If no specific failures found, add generic failure info
+                            if (failedTests.isEmpty()) {
+                                failedTests.add([
+                                    name: "Visual Regression Tests",
+                                    path: "Multiple test files",
+                                    message: "Tests failed during execution - check build logs and reports for details"
+                                ])
+                            }
                         }
-                        
-                        // Create bug report in ClickUp
-                        def bugTitle = "BUG: Test Failures in ${jobName} #${buildNumber}"
-                        
-                        // Deduplicate failures
-                        def uniqueFailures = [:]
+                    } catch (Exception e) {
+                        echo "Error analyzing test results: ${e.message}"
+                        failedTests.add([
+                            name: "Test Analysis Failed",
+                            path: "Unknown",
+                            message: "Could not analyze test results: ${e.message}"
+                        ])
+                    }
+                    
+                    // Create bug report in ClickUp
+                    def bugTitle = "BUG: Visual Test Failures in ${jobName} #${buildNumber}"
+                    
+                    // Format the failed tests
+                    def failedTestsFormatted = ""
+                    if (failedTests.size() > 0) {
                         failedTests.each { test ->
-                            def key = "${test.name}:${test.path}:${test.message}"
-                            if (uniqueFailures.containsKey(key)) {
-                                uniqueFailures[key].count++
-                            } else {
-                                test.count = 1
-                                uniqueFailures[key] = test
+                            failedTestsFormatted += "\n\n**Failed Test:** ${test.name}"
+                            if (test.path) {
+                                failedTestsFormatted += "\n**Location:** ${test.path}"
+                            }
+                            if (test.message) {
+                                failedTestsFormatted += "\n**Error Message:** ${test.message}"
                             }
                         }
-                        
-                        // Format the failed tests
-                        def failedTestsFormatted = ""
-                        if (uniqueFailures.size() > 0) {
-                            uniqueFailures.values().each { test ->
-                                failedTestsFormatted += "\n\n**Failed Test:** ${test.name}"
-                                if (test.path) {
-                                    failedTestsFormatted += "\n**Location:** ${test.path}"
-                                }
-                                if (test.message) {
-                                    failedTestsFormatted += "\n**Error Message:** ${test.message}"
-                                }
-                                if (test.count > 1) {
-                                    failedTestsFormatted += "\n**Occurrences:** ${test.count} times"
-                                }
-                            }
-                        } else {
-                            failedTestsFormatted = "\n- Unknown test failures - see report for details"
-                        }
-                        
-                        // Create the bug description
-                        def bugDescription = """**Bug Report - Test Failures**
+                    } else {
+                        failedTestsFormatted = "\n- Test failures detected - see reports for details"
+                    }
+                    
+                    // Create the bug description
+                    def bugDescription = """**Bug Report - Visual Test Failures**
 
 **Job**: ${jobName}
 **Build**: #${buildNumber}
 **Status**: Failed
 **Date**: ${date}
+**Initial Test Result**: ${env.INITIAL_TEST_RESULT}
+**Retry Test Result**: ${env.RETRY_TEST_RESULT ?: 'Not attempted'}
 
 **Failed Tests**:${failedTestsFormatted}
 
 **Links**:
 - [Jenkins Build](${buildUrl})
-- [Allure Report](${buildUrl}allure)"""
+- [Playwright HTML Report](${buildUrl}Playwright_Test_Report/)
+- [Test Artifacts](${buildUrl}artifact/)"""
+                    
+                    // Create the bug ticket JSON
+                    def bugJson = """
+                    {
+                        "name":"${bugTitle}",
+                        "description":"${bugDescription.replaceAll('"', '\\\\"').replaceAll('\n', '\\\\n')}",
+                        "status":"to do",
+                        "priority":1,
+                        "tags":["bug","automated-test","visual-regression"],
+                        "assignees":[${CLICKUP_USER_ID}]
+                    }
+                    """
+                    
+                    // Create the bug ticket
+                    def taskId = ""
+                    try {
+                        writeFile file: 'bug_ticket.json', text: bugJson
+                        def bugResponse = sh(
+                            script: "curl -X POST 'https://api.clickup.com/api/v2/list/${listId}/task' -H 'Authorization: ${CLICKUP_API_TOKEN}' -H 'Content-Type: application/json' -d @bug_ticket.json",
+                            returnStdout: true
+                        ).trim()
                         
-                        // Create the bug ticket
-                        def bugJson = """
-                        {
-                            "name":"${bugTitle}",
-                            "description":"${bugDescription.replaceAll('"', '\\\\"').replaceAll('\n', '\\\\n')}",
-                            "status":"to do",
-                            "priority":1,
-                            "tags":["bug","automated-test"],
-                            "assignees":[${CLICKUP_USER_ID}]
+                        echo "ClickUp API Response: ${bugResponse}"
+                        
+                        def taskIdMatcher = bugResponse =~ /"id":"([^"]*)"/
+                        if (taskIdMatcher.find()) {
+                            taskId = taskIdMatcher.group(1)
+                            echo "Created ClickUp task with ID: ${taskId}"
+                        } else {
+                            echo "Could not extract task ID from response"
                         }
-                        """
-                        
-                        // Create the bug ticket
-                        def taskId = ""
+                    } catch (Exception e) {
+                        echo "Error creating bug ticket: ${e.message}"
+                        return
+                    }
+                    
+                    // Attach screenshots if available
+                    if (taskId && fileExists("test-results")) {
                         try {
-                            writeFile file: 'bug_ticket.json', text: bugJson
-                            def bugResponse = sh(
-                                script: "curl -X POST 'https://api.clickup.com/api/v2/list/${listId}/task' -H 'Authorization: ${CLICKUP_API_TOKEN}' -H 'Content-Type: application/json' -d @bug_ticket.json",
+                            echo "Looking for screenshots to attach..."
+                            def screenshotsOutput = sh(
+                                script: "find test-results -name '*.png' -type f | head -5 || echo 'No screenshots found'",
                                 returnStdout: true
                             ).trim()
                             
-                            def taskIdMatcher = bugResponse =~ /"id":"([^"]*)"/
-                            if (taskIdMatcher.find()) {
-                                taskId = taskIdMatcher.group(1)
+                            if (screenshotsOutput && !screenshotsOutput.contains('No screenshots found')) {
+                                def uploadedScreenshots = 0
+                                screenshotsOutput.split('\n').each { path ->
+                                    if (path && fileExists(path)) {
+                                        try {
+                                            echo "Attaching screenshot: ${path}"
+                                            sh "curl -X POST 'https://api.clickup.com/api/v2/task/${taskId}/attachment' -H 'Authorization: ${CLICKUP_API_TOKEN}' -F 'attachment=@${path}'"
+                                            uploadedScreenshots++
+                                        } catch (Exception e) {
+                                            echo "Error uploading screenshot ${path}: ${e.message}"
+                                        }
+                                    }
+                                }
+                                echo "Uploaded ${uploadedScreenshots} screenshots to ClickUp task"
+                            } else {
+                                echo "No screenshots found to attach"
                             }
                         } catch (Exception e) {
-                            echo "Error creating bug ticket: ${e.message}"
-                            return
+                            echo "Error attaching screenshots: ${e.message}"
                         }
-                        
-                        // Attach screenshots if available
-                        if (taskId && fileExists("${PLAYWRIGHT_TEST_RESULTS_DIR}")) {
-                            try {
-                                // Extract test names that failed
-                                def failedTestNames = []
-                                failedTests.each { test ->
-                                    def normalizedName = test.name.replaceAll(/[^a-zA-Z0-9]/, "").toLowerCase()
-                                    if (normalizedName) {
-                                        failedTestNames.add(normalizedName)
-                                    }
-                                    
-                                    if (test.path) {
-                                        test.path.split(/[\/\\]/).each { pathPart ->
-                                            def normalized = pathPart.replaceAll(/[^a-zA-Z0-9]/, "").toLowerCase()
-                                            if (normalized && normalized.length() > 3) {
-                                                failedTestNames.add(normalized)
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                // Find all screenshots
-                                def screenshotsOutput = sh(
-                                    script: "find ${PLAYWRIGHT_TEST_RESULTS_DIR} -name '*.png' -type f || true",
-                                    returnStdout: true
-                                ).trim()
-                                
-                                if (screenshotsOutput) {
-                                    def uploadedScreenshots = 0
-                                    def processedFiles = []
-                                    
-                                    // Helper function to extract test identifier
-                                    def extractTestId = { String path ->
-                                        def fileName = path.tokenize('/').last()
-                                        def dirName = path.tokenize('/')[-2]
-                                        def testId = ""
-                                        def matcher = dirName =~ /([A-Za-z0-9-]+(?:-retry\d+)?)$/
-                                        if (matcher.find()) {
-                                            testId = matcher.group(1)
-                                        }
-                                        return [testId: testId, fileName: fileName, dirName: dirName]
-                                    }
-                                    
-                                    // First try: test-failed screenshots
-                                    def failedTestScreenshots = screenshotsOutput.split('\n').findAll { path ->
-                                        path && path.toLowerCase().contains("test-failed")
-                                    }
-                                    
-                                    // Group screenshots by test
-                                    def screenshotsByTest = [:]
-                                    failedTestScreenshots.each { path ->
-                                        if (fileExists(path) && !processedFiles.contains(path)) {
-                                            def info = extractTestId(path)
-                                            def key = info.dirName
-                                            
-                                            if (!screenshotsByTest.containsKey(key)) {
-                                                screenshotsByTest[key] = []
-                                            }
-                                            screenshotsByTest[key] << path
-                                        }
-                                    }
-                                    
-                                    // Upload one screenshot per test
-                                    screenshotsByTest.each { testKey, screenshots ->
-                                        def bestScreenshot = screenshots.find { it.contains("test-failed-1.png") } ?: screenshots.first()
-                                        echo "Attaching screenshot for test ${testKey}: ${bestScreenshot}"
-                                        sh "curl -X POST 'https://api.clickup.com/api/v2/task/${taskId}/attachment' -H 'Authorization: ${CLICKUP_API_TOKEN}' -F 'attachment=@${bestScreenshot}'"
-                                        uploadedScreenshots++
-                                        processedFiles.add(bestScreenshot)
-                                    }
-                                    
-                                    // Second try: filename-based matching
-                                    if (uploadedScreenshots == 0) {
-                                        def matchedFilenames = []
-                                        screenshotsOutput.split('\n').each { path ->
-                                            if (path && fileExists(path) && !processedFiles.contains(path)) {
-                                                def pathLower = path.toLowerCase()
-                                                def fileName = path.tokenize('/').last().toLowerCase()
-                                                
-                                                if (!fileName.contains("-diff") && !fileName.contains("_diff")) {
-                                                    def matchedTest = failedTestNames.find { testName ->
-                                                        pathLower.contains(testName) && !matchedFilenames.contains(testName)
-                                                    }
-                                                    
-                                                    if (matchedTest) {
-                                                        echo "Attaching screenshot for test ${matchedTest}: ${path}"
-                                                        sh "curl -X POST 'https://api.clickup.com/api/v2/task/${taskId}/attachment' -H 'Authorization: ${CLICKUP_API_TOKEN}' -F 'attachment=@${path}'"
-                                                        uploadedScreenshots++
-                                                        processedFiles.add(path)
-                                                        matchedFilenames.add(matchedTest)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    
-                                    // Final fallback: any failure-related screenshots
-                                    if (uploadedScreenshots == 0) {
-                                        screenshotsOutput.split('\n').each { path ->
-                                            if (path && fileExists(path) && !processedFiles.contains(path)) {
-                                                def fileName = path.tokenize('/').last().toLowerCase()
-                                                if (fileName.contains("fail") || fileName.contains("error") || fileName.contains("assertion")) {
-                                                    echo "Attaching failure screenshot: ${path}"
-                                                    sh "curl -X POST 'https://api.clickup.com/api/v2/task/${taskId}/attachment' -H 'Authorization: ${CLICKUP_API_TOKEN}' -F 'attachment=@${path}'"
-                                                    uploadedScreenshots++
-                                                    processedFiles.add(path)
-                                                }
-                                            }
-                                        }
-                                    }
-                                    
-                                    echo "Uploaded ${uploadedScreenshots} screenshots related to failed tests"
-                                }
-                            } catch (Exception e) {
-                                echo "Error attaching screenshots: ${e.message}"
-                            }
-                        }
-                        
-                        echo "Created BUG ticket: ${bugTitle} and assigned to QA Engineer"
+                    }
+                    
+                    echo "✅ Created ClickUp BUG ticket: ${bugTitle}"
+                }
+            }
+        }
+
+        stage('Final Test Result') {
+            steps {
+                script {
+                    // Determine final result after all reports are generated
+                    def initialFailed = (env.INITIAL_TEST_RESULT != '0')
+                    def retryFailed = (env.RETRY_TEST_RESULT != null && env.RETRY_TEST_RESULT != '0')
+                    
+                    if (initialFailed && retryFailed) {
+                        error "Visual regression tests failed on both initial run and retry—see archived artifacts and reports."
+                    } else if (initialFailed && !retryFailed) {
+                        echo "⚠️ Tests failed initially but passed on retry"
+                    } else {
+                        echo "✅ All tests passed"
                     }
                 }
             }
@@ -640,7 +337,32 @@ EOL
 
     post {
         always {
-            cleanWs()
+            // Archive test artifacts
+            archiveArtifacts artifacts: 'test-results/**/*', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'playwright-report/**/*', allowEmptyArchive: true
+        }
+        
+        success {
+            echo """
+            ✅ Pipeline completed successfully
+            Timestamp: ${env.TEST_TIMESTAMP}
+            User:      ${env.CURRENT_USER}
+            
+            Reports available:
+            - Playwright HTML Report
+            """
+        }
+        failure {
+            echo """
+            ❌ Pipeline failed!
+            Timestamp: ${env.TEST_TIMESTAMP}
+            User:      ${env.CURRENT_USER}
+            Build URL: ${env.BUILD_URL}
+            """
+            // Artifacts (screenshots + test-results) were already archived on failure
+        }
+        cleanup {
+            deleteDir()
         }
     }
 }

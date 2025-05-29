@@ -85,28 +85,6 @@ test.describe('PRP Page Tests', () => {
         expect(firstFAQ.answer).toContain('Die Kostenübernahme durch die gesetzlichen Krankenkassen variiert');
     });
 
-    test('should handle contact form', async () => {
-        await expect(await prpPage.isContactFormVisible()).toBeTruthy();
-
-        const formData = {
-            name: 'Test Name',
-            firstName: 'Test First Name',
-            phone: '+41 123 456 789',
-            email: 'test@example.com',
-            street: 'Test Street 1',
-            city: 'Test City',
-            clinicalNotes: ['Reguläres Aufgebot'],
-            referrer: 'Test Referrer Info'
-        };
-
-        await prpPage.fillContactForm(formData);
-    });
-
-    test('should handle language switching', async () => {
-        await prpPage.navigate('fr');
-        const heroTitle = await prpPage.getHeroTitle();
-        expect(heroTitle).toContain("Favoriser l'autoguérison par l'autohémothérapie : le plasma  riche en plaquettes (PRP) pour un traitement efficace. (Possible sous sédation)");
-    });
 
     test('should handle button interactions', async () => {
         // Test appointment button

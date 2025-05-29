@@ -105,15 +105,10 @@ export class BewegungsapparatPage extends BasePage {
         super(page);
     }
 
-    async goto(): Promise<boolean> {
-        try {
-            await this.navigate('https://dolomed.ch/bewegungsapparat/');
-            await this.waitForPageLoad();
-            return true;
-        } catch (error) {
-            console.error('Failed to navigate to Bewegungsapparat page:', error);
-            return false;
-        }
+    async visit(lang: 'de' | 'fr' = 'de') {
+        const url = lang === 'de' ? 'https://dolomed.ch/bewegungsapparat/' : `https://dolomed.ch/${lang}/bewegungsapparat/`;
+        await this.page.goto(url);
+        await this.page.waitForLoadState('networkidle');
     }
     
     // Hero section methods

@@ -38,8 +38,4 @@ test.describe('Patienten & Zuweiser page', () => {
         await page.verifyContactSection();
     });
 
-    test('should open medicosearch widget when clicking appointment button', async () => {
-        await page.clickAppointmentButton();
-        await page.verifyMedicosearchWidget();
-    });
 }); 

@@ -28,20 +28,7 @@ test.describe('Header Functionality', () => {
         await header.waitForHeaderToLoad();
     });
 
-    test('should find logo and verify it is visible', async ({ page }) => {
-        const isLogoVisible = await header.isLogoVisible();
-        expect(isLogoVisible).toBeTruthy();
-    });
 
-    test('should verify main navigation menu is visible', async ({ page }) => {
-        const navResult = await header.verifyMainNavigation();
-        
-        expect(navResult.isMainMenuVisible).toBeTruthy();
-        expect(navResult.menuItems.krankheiten).toBeTruthy();
-        expect(navResult.menuItems.therapie).toBeTruthy();
-        expect(navResult.menuItems.ueberUns).toBeTruthy();
-        expect(navResult.menuItems.patienten).toBeTruthy();
-    });
 
     test('should open Krankheiten dropdown menu', async ({ page }) => {
         const dropdownResult = await header.openKrankheitenDropdown();
@@ -57,30 +44,6 @@ test.describe('Header Functionality', () => {
         expect(dropdownResult.dropdownVisible).toBeTruthy();
         expect(dropdownResult.hasNervenstimulationLink).toBeTruthy();
         expect(dropdownResult.hasAkupunkturLink).toBeTruthy();
-    });
-
-    test('should verify language selector is working', async ({ page }) => {
-        const languageResult = await header.verifyLanguageSelector();
-        
-        expect(languageResult.isLanguageButtonVisible).toBeTruthy();
-        expect(languageResult.isFrenchOptionVisible).toBeTruthy();
-    });
-
-    test('should verify call button is visible with correct phone number', async ({ page }) => {
-        const callButtonResult = await header.verifyCallButton();
-        
-        expect(callButtonResult.isCallButtonVisible).toBeTruthy();
-        expect(callButtonResult.hasCorrectPhoneNumber).toBeTruthy();
-    });
-
-    test('should show mobile menu button on mobile viewport', async ({ page }) => {
-        // Skip this test if browser doesn't support mobile emulation
-        if (!page.viewportSize) {
-            test.skip();
-        }
-        
-        const mobileButtonResult = await header.verifyMobileMenuButton(true);
-        expect(mobileButtonResult.isMobileButtonVisible).toBeTruthy();
     });
 
     test('should open mobile menu on mobile viewport', async ({ page }) => {

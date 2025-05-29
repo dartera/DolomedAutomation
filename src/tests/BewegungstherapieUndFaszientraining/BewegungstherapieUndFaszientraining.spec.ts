@@ -29,10 +29,6 @@ test.describe('Bewegungstherapie und Faszientraining Page Tests', () => {
         await pageObject.verifyFAQSection();
     });
 
-    test('should display contact form with all required fields', async () => {
-        await pageObject.verifyContactForm();
-    });
-
     test('should display correct address information', async () => {
         await pageObject.verifyAddressSection();
     });

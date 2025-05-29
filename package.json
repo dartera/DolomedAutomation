@@ -1,38 +1,28 @@
 {
-  "name": "dolomedautomation",
- "version": "1.0.0",
-  "main": "index.js",
+  "name": "visual-regression-tests",
+  "version": "1.0.0",
+  "description": "Visual regression testing with Playwright",
   "scripts": {
     "test": "playwright test",
-    "test:report": "playwright test && npx playwright show-report",
-    "test:pixel": "playwright test",
-    "test:similarity": "USE_SIMILARITY_COMPARISON=true playwright test",
-    "report:open": "npx playwright show-report",
-    "report:custom": "node -r ts-node/register src/utils/customReporter.ts",
-    "open-report": "npx http-server test-results -o /custom-report.html --port 8080 --host localhost",
-    "test:allure": "playwright test --config=playwright.config.ts --reporter=line,allure-playwright --project='Desktop Chrome' --workers=2 --timeout=60000 --retries=0 || exit 1",
-    "test:retry-failed": "playwright test --last-failed || true",
-    "allure:generate": "allure generate allure-results -o allure-report --clean",
-    "allure:serve": "allure serve allure-results"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "devDependencies": {
-    "@playwright/test": "^1.51.1",
-    "@types/node": "^22.13.9",
-    "@types/pngjs": "^6.0.5",
-    "allure-playwright": "^3.2.1"
+    "test:update": "playwright test --update-snapshots",
+    "test:ui": "playwright test --ui",
+    "show-report": "playwright show-report",
+    "postinstall": "npx playwright install chromium"
   },
   "dependencies": {
-    "image-hash": "^5.3.2",
-    "pixelmatch": "^7.1.0",
-    "pngjs": "^7.0.0",
-    "sharp": "^0.33.2",
-    "ssim.js": "^3.5.0"
+    "@playwright/test": "^1.35.0",
+    "pixelmatch": "^5.3.0",
+    "pngjs": "^7.0.0"
   },
-  "optionalDependencies": {
-    "canvas": "^3.1.0"
-  }
+  "devDependencies": {
+    "@types/node": "^18.15.0",
+    "@types/pixelmatch": "^5.2.4",
+    "@types/pngjs": "^6.0.1",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "author": "waseem",
+  "license": "MIT"
 }

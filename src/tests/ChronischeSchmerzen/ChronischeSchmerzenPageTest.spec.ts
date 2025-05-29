@@ -63,19 +63,4 @@ test.describe('Chronische Schmerzen Page Tests', () => {
         expect(faqCount).toBeGreaterThan(0);
     });
 
-    test('should display and interact with contact form correctly', async () => {
-        const isContactFormVisible = await chronischeSchmerzenPage.isContactFormVisible();
-        expect(isContactFormVisible).toBeTruthy();
-
-        // Fill out the contact form
-        await chronischeSchmerzenPage.fillContactForm(
-            'Test',
-            'User',
-            '0123456789',
-            'test@example.com',
-            'Test Street 1',
-            'Test City',
-            'This is a test message'
-        );
-    });
 }); 

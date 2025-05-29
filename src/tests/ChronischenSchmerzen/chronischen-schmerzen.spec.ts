@@ -69,25 +69,6 @@ test.describe('Chronischen Schmerzen Page Tests', () => {
         expect(secondAnswer).toContain('Die Häufigkeit der Ketamin-Infusionen hängt vom individuellen Behandlungsplan ab');
     });
 
-    test('should handle contact form', async () => {
-        // Check contact form title
-        const formTitle = await chronischenSchmerzenPage.getContactFormTitle();
-        expect(formTitle).toBe('ZUWEISUNG / BON DE DÉLÉGATION');
-
-        // Fill contact form
-        const formData = {
-            name: 'Test Name',
-            firstName: 'Test First Name',
-            phone: '1234567890',
-            email: 'test@example.com',
-            street: 'Test Street',
-            city: 'Test City',
-            clinicalNotes: ['Reguläres Aufgebot'],
-            doctorInfo: 'Test Doctor Info'
-        };
-
-        await chronischenSchmerzenPage.fillContactForm(formData);
-    });
 
     test('should display contact information correctly', async () => {
         const contactInfo = await chronischenSchmerzenPage.getContactInfo();

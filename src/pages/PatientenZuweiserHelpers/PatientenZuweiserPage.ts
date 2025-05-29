@@ -8,7 +8,7 @@ export class PatientenZuweiserPage {
     }
 
     async navigate() {
-        await this.page.goto('/patienten-zuweiser/');
+        await this.page.goto('https://dolomed.ch/patienten-zuweiser/');
     }
 
     async verifyPageTitle() {

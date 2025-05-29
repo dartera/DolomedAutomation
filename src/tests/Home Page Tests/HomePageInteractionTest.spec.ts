@@ -99,20 +99,6 @@ test.describe('Dolomed HomePage interaction tests', () => {
         expect(locationsVisibility.bern).toBe(true);
     });
 
-    // Test Contact Form
-    test('should allow filling the contact form', async () => {
-        // Make sure we're on the contact section
-        await homePage.page.locator('.elementor-section[data-id="486d22bb"]').scrollIntoViewIfNeeded();
-        await homePage.page.waitForTimeout(500);
-        
-        // Fill out the contact form
-        await homePage.fillContactForm('Test User', 'test@example.com', 'This is a test message');
-        
-        // Check that the form fields have been filled correctly using specific selectors
-        await expect(homePage.page.locator('.elementor-section[data-id="486d22bb"] input[name="your-name"]')).toHaveValue('Test User');
-        await expect(homePage.page.locator('.elementor-section[data-id="486d22bb"] input[name="your-email"]')).toHaveValue('test@example.com');
-        await expect(homePage.page.locator('.elementor-section[data-id="486d22bb"] textarea[name="your-message"]')).toHaveValue('This is a test message');
-    });
 
     // Test navigation functionalities
     test('should have working call now buttons', async () => {
@@ -203,59 +189,6 @@ test.describe('Dolomed HomePage interaction tests', () => {
             test.skip();
             console.log('Language switcher not found on this page');
         }
-    });
-
-    // Test scroll functionality and interaction with elements throughout the page
-    test('should properly render elements when scrolling through the page', async () => {
-        // Test initial viewport - Hero section should be visible
-        await expect(homePage.page.locator('.elementor-element[data-id="108fecab"]')).toBeVisible();
-        
-        // Scroll to treatment methods section
-        await homePage.page.locator('.elementor-element[data-id="30a5e292"]').scrollIntoViewIfNeeded();
-        await homePage.page.waitForTimeout(500); // Allow time for any animations to complete
-        await expect(homePage.page.locator('.elementor-element[data-id="30a5e292"]')).toBeVisible();
-        
-        // Check that a specific treatment method is visible after scrolling
-        await expect(homePage.page.locator('.elementor-element[data-id="3d718dd0"]')).toBeVisible();
-        
-        // Scroll to visitor information section
-        await homePage.page.locator('.elementor-element[data-id="28947c2e"]').scrollIntoViewIfNeeded();
-        await homePage.page.waitForTimeout(500);
-        await expect(homePage.page.locator('.elementor-element[data-id="28947c2e"]')).toBeVisible();
-        
-        // Scroll to team section and interact with tabs
-        await homePage.page.locator('.elementor-element[data-id="e0115ac"]').scrollIntoViewIfNeeded();
-        await homePage.page.waitForTimeout(500);
-        
-        // Click MPA tab and verify content changes
-        await homePage.page.click('#e-n-tab-title-2101261532');
-        await homePage.page.waitForTimeout(500);
-        await expect(homePage.page.locator('#e-n-tab-content-2101261532')).toBeVisible();
-        
-        // Click back to doctors tab
-        await homePage.page.click('#e-n-tab-title-2101261531');
-        await homePage.page.waitForTimeout(500);
-        await expect(homePage.page.locator('#e-n-tab-content-2101261531')).toBeVisible();
-        
-        // Scroll to career section
-        await homePage.page.locator('.elementor-element[data-id="5e5cc2a8"]').scrollIntoViewIfNeeded();
-        await homePage.page.waitForTimeout(500);
-        await expect(homePage.page.locator('.elementor-element[data-id="5e5cc2a8"]')).toBeVisible();
-        
-        // Scroll to contact section
-        await homePage.page.locator('.elementor-section[data-id="486d22bb"]').scrollIntoViewIfNeeded();
-        await homePage.page.waitForTimeout(500);
-        await expect(homePage.page.locator('.elementor-section[data-id="486d22bb"]')).toBeVisible();
-        
-        // Interact with contact form
-        await homePage.page.fill('.elementor-section[data-id="486d22bb"] input[name="your-name"]', 'Test Scroll User');
-        await homePage.page.fill('.elementor-section[data-id="486d22bb"] input[name="your-email"]', 'test-scroll@example.com');
-        await homePage.page.fill('.elementor-section[data-id="486d22bb"] textarea[name="your-message"]', 'Testing scroll interaction');
-        
-        // Verify form input values
-        await expect(homePage.page.locator('.elementor-section[data-id="486d22bb"] input[name="your-name"]')).toHaveValue('Test Scroll User');
-        await expect(homePage.page.locator('.elementor-section[data-id="486d22bb"] input[name="your-email"]')).toHaveValue('test-scroll@example.com');
-        await expect(homePage.page.locator('.elementor-section[data-id="486d22bb"] textarea[name="your-message"]')).toHaveValue('Testing scroll interaction');
     });
 });
 

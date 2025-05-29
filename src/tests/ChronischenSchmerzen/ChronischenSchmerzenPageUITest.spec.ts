@@ -1,221 +1,79 @@
-import { test, expect } from '@playwright/test';
-import { 
-    setupPage, 
-    createDesktopContext,
-    createMobileContext,
-    comparePageScreenshot,
-    AdvancedComparisonOptions,
-    ComparisonResult
-} from '../../utils/uiTestUtils';
+import { test } from '@playwright/test';
+import { MultiLanguageVisualHelper } from '../../utils/multi-language-visual-helper';
+import { visualTestDefaults } from '../../config/test-config';
 
-// Increase the test timeout to 120 seconds
-test.setTimeout(120000);
+// Define language configs for the Chronischen Schmerzen page
+const chronischenSchmerzenLanguages = [
+  {
+    url: '/chronischen-schmerzen/',
+    code: 'de',
+    name: 'German (Default)',
+    isDefault: true
+  },
+  {
+    url: '/fr/chronischen-schmerzen/',
+    code: 'fr',
+    name: 'French'
+  }
+];
 
-// Define common options for visual comparison
-const comparisonOptions: Partial<AdvancedComparisonOptions> = {
-    // Use traditional pixel comparison by default
-    useSimilarityComparison: false,
-    
-    // Set more tolerant thresholds for CI
-    threshold: process.env.CI ? 0.4 : 0.3,
-    includeAA: true,
-    maxDiffPercentage: process.env.CI ? 7.0 : 5.0  // More tolerant in CI
-};
+// Desktop visual regression (one test per language)
+test.describe('Visual Regression - Chronischen Schmerzen Page (Desktop)', () => {
+  let visualHelper: MultiLanguageVisualHelper;
 
-test.describe('Chronischen Schmerzen page visual comparison', () => {
-    const languages = ['de', 'fr'] as const;
-    
-    for (const lang of languages) {
-        test(`Desktop view - ${lang}`, async ({ browser }) => {
-            // Create a new context with desktop settings
-            const desktopContext = await createDesktopContext(browser, { locale: lang });
-            
-            try {
-                // Create a new page in the desktop context
-                const page = await desktopContext.newPage();
-                
-                // Set up the page with language-specific URL
-                const url = getLanguageUrl(lang);
-                console.log(`Navigating to URL: ${url}`);
-                
-                await setupPage(page, url, undefined, {
-                    handleCookieConsent: true,
-                    waitTime: 3000,
-                    scrollPage: true
-                });
-                
-                // Wait for network to be idle
-                await page.waitForLoadState('networkidle', { timeout: 15000 });
-                
-                // Use the comprehensive function for screenshot comparison
-                const result = await comparePageScreenshot(
-                    page,
-                    `ChronischenSchmerzen_Full_${lang}`,
-                    'ChronischenSchmerzenPage',
-                    test.info(),
-                    comparisonOptions
-                );
-                
-                // Log test information including diff paths
-                console.log(`Desktop test results for ${lang}:
-                    - Passed: ${result.passed}
-                    - Difference: ${result.percentDifferent.toFixed(2)}%
-                    - Maximum allowed: ${comparisonOptions.maxDiffPercentage}%`);
-                
-                // Fail the test if the comparison fails
-                expect(result.passed, 
-                    `Visual differences detected in ${lang}: ${result.percentDifferent.toFixed(2)}% of pixels are different. Check the diff image for details.`
-                ).toBeTruthy();
-            } catch (error) {
-                // Log the error properly
-                console.error(`Test failed: ${error.message}`);
-                throw error;
-            } finally {
-                // Always close the context
-                await desktopContext.close();
-            }
-        });
+  test.beforeAll(async ({ browser }) => {
+    visualHelper = new MultiLanguageVisualHelper();
+    await visualHelper.setup(browser, { width: 1024, height: 768 });
+  });
 
-        test(`Mobile view - ${lang}`, async ({ browser }) => {
-            // Create a new context with mobile device emulation
-            const mobileContext = await createMobileContext(browser, 'iPhone 12', { locale: lang });
-            
-            try {
-                // Create a new page in the mobile context
-                const page = await mobileContext.newPage();
-                
-                // Get current viewport size
-                const viewport = page.viewportSize() || { width: 375, height: 667 };
-                console.log(`Mobile viewport size: ${viewport.width}x${viewport.height}`);
-                
-                // Set up the page with language-specific URL
-                const url = getLanguageUrl(lang);
-                console.log(`Navigating to URL: ${url}`);
-                
-                await setupPage(page, url, undefined, {
-                    handleCookieConsent: true,
-                    waitTime: 3000,
-                    scrollPage: true
-                });
-                
-                // Fix layout issues before taking screenshot
-                await fixMobileLayout(page);
-                
-                // Wait for network to be idle
-                await page.waitForLoadState('networkidle', { timeout: 15000 });
-                
-                // Use the comprehensive function for screenshot comparison
-                const result = await comparePageScreenshot(
-                    page,
-                    `ChronischenSchmerzen_Mobile_${lang}`,
-                    'ChronischenSchmerzenPage',
-                    test.info(),
-                    comparisonOptions
-                );
-                
-                // Log test information including diff paths
-                console.log(`Mobile test results for ${lang}:
-                    - Passed: ${result.passed}
-                    - Difference: ${result.percentDifferent.toFixed(2)}%
-                    - Maximum allowed: ${comparisonOptions.maxDiffPercentage}%`);
-                
-                // Fail the test if the comparison fails
-                expect(result.passed, 
-                    `Visual differences detected in ${lang}: ${result.percentDifferent.toFixed(2)}% of pixels are different. Check the diff image for details.`
-                ).toBeTruthy();
-            } catch (error) {
-                // Log the error properly
-                console.error(`Test failed: ${error.message}`);
-                throw error;
-            } finally {
-                // Always close the context
-                await mobileContext.close();
-            }
-        });
-    }
+  test.afterAll(async () => {
+    await visualHelper.cleanup();
+  });
+
+  for (const lang of chronischenSchmerzenLanguages) {
+    test(`chronischen-schmerzen-visual-desktop-${lang.code}`, async () => {
+      await visualHelper.runIndividualLanguageTest(
+        lang,
+        'chronischen-schmerzen-visual',
+        {
+          diffThreshold: visualTestDefaults.diffThreshold,
+          customStyles: `* { max-width: 100% !important; overflow-x: hidden !important; } body { width: 100% !important; margin: 0 !important; padding: 0 !important; overflow-x: hidden !important; }`,
+          scrollToBottom: visualTestDefaults.scrollToBottom,
+          waitAfterScroll: visualTestDefaults.waitAfterScroll,
+          waitForLoadState: visualTestDefaults.waitForLoadState
+        }
+      );
+    });
+  }
 });
 
-/**
- * Fixes mobile layout issues before taking a screenshot
- */
-async function fixMobileLayout(page: any): Promise<void> {
-    // Fix the layout by applying CSS constraints
-    await page.evaluate(() => {
-        // Get the viewport width
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        console.log(`Viewport dimensions: ${viewportWidth}x${viewportHeight}`);
-        
-        // Force content width to match viewport width exactly
-        document.documentElement.style.width = `${viewportWidth}px`;
-        document.documentElement.style.maxWidth = `${viewportWidth}px`;
-        document.body.style.width = `${viewportWidth}px`;
-        document.body.style.maxWidth = `${viewportWidth}px`;
-        document.body.style.overflowX = 'hidden';
-        document.body.style.paddingRight = '0';
-        document.body.style.marginRight = '0';
-        
-        // Fix common layout issues by constraining elements
-        const containerElements = document.querySelectorAll('.elementor-container, .elementor-section, .elementor-widget, .elementor-column');
-        containerElements.forEach((el: Element) => {
-            // Force all container elements to respect viewport width
-            const element = el as HTMLElement;
-            const style = window.getComputedStyle(element);
-            const width = parseFloat(style.width);
-            
-            if (width > viewportWidth) {
-                element.style.width = `${viewportWidth}px`;
-                element.style.maxWidth = `${viewportWidth}px`;
-                element.style.marginRight = '0';
-                element.style.paddingRight = '0';
-                element.style.boxSizing = 'border-box';
-                console.log(`Fixed oversized element: ${element.className}, width: ${width}px`);
-            }
-        });
-        
-        // Find and fix any elements with overflow or that extend beyond viewport
-        document.querySelectorAll('*').forEach((el: Element) => {
-            const element = el as HTMLElement;
-            const rect = element.getBoundingClientRect();
-            
-            // Check if element extends beyond viewport width
-            if (rect.right > viewportWidth + 5) { // 5px tolerance
-                element.style.maxWidth = '100%';
-                element.style.width = '100%';
-                element.style.boxSizing = 'border-box';
-                element.style.overflowX = 'hidden';
-                console.log(`Fixed element extending beyond viewport: ${element.tagName}.${element.className}`);
-            }
-        });
-        
-        // Remove any horizontal scrolling
-        document.documentElement.style.overflowX = 'hidden';
-        
-        // Return the actual content height to verify
-        return {
-            documentHeight: Math.max(
-                document.body.scrollHeight,
-                document.body.offsetHeight,
-                document.documentElement.clientHeight,
-                document.documentElement.scrollHeight,
-                document.documentElement.offsetHeight
-            ),
-            bodyWidth: document.body.offsetWidth,
-            htmlWidth: document.documentElement.offsetWidth
-        };
-    }).then((dimensions) => {
-        console.log(`Content dimensions after fixes - Height: ${dimensions.documentHeight}px, Body width: ${dimensions.bodyWidth}px, HTML width: ${dimensions.htmlWidth}px`);
-    });
-    
-    // Wait a moment for any style recalculations
-    await page.waitForTimeout(500);
-}
+// Mobile visual regression (one test per language)
+test.describe('Visual Regression - Chronischen Schmerzen Page (Mobile)', () => {
+  let visualHelper: MultiLanguageVisualHelper;
 
-// Helper function to get the correct URL for each language
-function getLanguageUrl(lang: string): string {
-    // German is served from the base path for chronischen-schmerzen
-    if (lang === 'de') return '/chronischen-schmerzen/';
-    
-    // All other languages use their language code in the URL
-    return `/${lang}/chronischen-schmerzen/`;
-} 
+  test.beforeAll(async ({ browser }) => {
+    visualHelper = new MultiLanguageVisualHelper();
+    await visualHelper.setup(browser, { width: 390, height: 844 }); // iPhone 12 Pro
+  });
+
+  test.afterAll(async () => {
+    await visualHelper.cleanup();
+  });
+
+  for (const lang of chronischenSchmerzenLanguages) {
+    test(`chronischen-schmerzen-visual-mobile-${lang.code}`, async () => {
+      await visualHelper.runIndividualLanguageTest(
+        lang,
+        'chronischen-schmerzen-visual-mobile',
+        {
+          diffThreshold: visualTestDefaults.diffThreshold,
+          customStyles: `* { max-width: 100% !important; overflow-x: hidden !important; } body { width: 100% !important; margin: 0 !important; padding: 0 !important; overflow-x: hidden !important; }`,
+          scrollToBottom: visualTestDefaults.scrollToBottom,
+          waitAfterScroll: visualTestDefaults.waitAfterScroll,
+          waitForLoadState: visualTestDefaults.waitForLoadState,
+          viewport: { width: 390, height: 844 }
+        }
+      );
+    });
+  }
+}); 

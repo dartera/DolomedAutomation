@@ -44,7 +44,7 @@ export class PRPPage {
     }
 
     async navigate(lang: 'de' | 'fr' = 'de') {
-        const url = lang === 'de' ? '/plasma-prp/' : `/${lang}/plasma-prp/`;
+        const url = lang === 'de' ? 'https://dolomed.ch/plasma-prp/' : `https://dolomed.ch/${lang}/plasma-prp/`;
         await this.page.goto(url);
     }
 
