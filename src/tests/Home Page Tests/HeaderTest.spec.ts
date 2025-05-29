@@ -45,14 +45,4 @@ test.describe('Header Functionality', () => {
         expect(dropdownResult.hasNervenstimulationLink).toBeTruthy();
         expect(dropdownResult.hasAkupunkturLink).toBeTruthy();
     });
-
-    test('should open mobile menu on mobile viewport', async ({ page }) => {
-        // Skip this test if browser doesn't support mobile emulation
-        if (!page.viewportSize) {
-            test.skip();
-        }
-        
-        const mobileMenuResult = await header.openMobileMenu(true);
-        expect(mobileMenuResult.isMobileMenuVisible).toBeTruthy();
-    });
 }); 

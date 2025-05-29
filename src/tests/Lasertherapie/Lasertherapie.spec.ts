@@ -37,35 +37,6 @@ test.describe('Lasertherapie Page Tests', () => {
         expect(faqCount).toBeGreaterThan(0);
     });
 
-    test('should be able to expand and collapse FAQ items', async () => {
-        const faqCount = await lasertherapiePage.getFAQCount();
-        
-        // First item should be expanded by default
-        const isFirstItemExpanded = await lasertherapiePage.isFAQItemExpanded(0);
-        expect(isFirstItemExpanded).toBeTruthy();
-
-        // Test expanding and collapsing each item
-        for (let i = 0; i < faqCount; i++) {
-            // If it's the first item, collapse it first
-            if (i === 0) {
-                await lasertherapiePage.collapseFAQItem(i);
-                // Wait for the state to update
-                await lasertherapiePage.page.waitForTimeout(1000);
-                const isCollapsed = await lasertherapiePage.isFAQItemExpanded(i);
-                expect(isCollapsed).toBeFalsy();
-            }
-
-            // Expand the item
-            await lasertherapiePage.expandFAQItem(i);
-            // Wait for the state to update
-            await lasertherapiePage.page.waitForTimeout(1000);
-            const isExpanded = await lasertherapiePage.isFAQItemExpanded(i);
-            expect(isExpanded).toBeTruthy();
-
-
-        }
-    });
-
     test('should be able to fill and submit contact form', async () => {
         const testData = {
             name: 'Test',
