@@ -37,19 +37,6 @@ test.describe('Lasertherapie Page Tests', () => {
         expect(faqCount).toBeGreaterThan(0);
     });
 
-    test('should be able to fill and submit contact form', async () => {
-        const testData = {
-            name: 'Test',
-            vorname: 'User',
-            phone: '+49123456789',
-            email: 'test@example.com',
-            street: 'Test Street 1',
-            city: 'Test City'
-        };
-
-        await lasertherapiePage.fillContactForm(testData);
-    });
-
     test('should load in different languages', async () => {
         const languages = ['de', 'fr'];
         

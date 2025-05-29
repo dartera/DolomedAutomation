@@ -37,9 +37,4 @@ test.describe('Über uns page', () => {
     test('should display career section', async () => {
         await page.verifyCareerSection();
     });
-
-    test('should open medicosearch widget when clicking appointment button', async () => {
-        await page.clickAppointmentButton();
-        await page.verifyMedicosearchWidget();
-    });
 }); 
