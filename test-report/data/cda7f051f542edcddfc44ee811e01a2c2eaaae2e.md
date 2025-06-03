@@ -1,0 +1,357 @@
+# Test info
+
+- Name: Visual Regression - Patienten & Zuweiser Page (Mobile) >> patienten-zuweiser-visual-mobile-de
+- Location: /Users/b.enukidze/Documents/Dartera/Test/DolomedAutomation/src/tests/PatientenZuweiser/PatientenZuweiserUITest.spec.ts:64:9
+
+# Error details
+
+```
+Error: expect(received).toBeLessThanOrEqual(expected)
+
+Expected: <= 0.7
+Received:    12.763608484538716
+    at VisualTestHelper.runVisualTest (/Users/b.enukidze/Documents/Dartera/Test/DolomedAutomation/src/utils/visual-test-helper.ts:89:41)
+    at MultiLanguageVisualHelper.runIndividualLanguageTest (/Users/b.enukidze/Documents/Dartera/Test/DolomedAutomation/src/utils/multi-language-visual-helper.ts:56:5)
+    at /Users/b.enukidze/Documents/Dartera/Test/DolomedAutomation/src/tests/PatientenZuweiser/PatientenZuweiserUITest.spec.ts:65:7
+```
+
+# Page snapshot
+
+```yaml
+- heading "🍪 Wir schätzen Ihre Privatsphäre" [level=1]
+- paragraph: Wir verwenden Cookies, um Ihr Surferlebnis zu verbessern, personalisierte Anzeigen oder Inhalte einzusetzen und unseren Datenverkehr zu analysieren. Wenn Sie auf „Alle akzeptieren" klicken, stimmen Sie der Anwendung von Cookies zu.
+- button "Anpassen"
+- button "Alle akzeptieren"
+- banner:
+  - navigation:
+    - link "DOLOMED_Logo_RGB_Claim 1":
+      - /url: /
+      - img "DOLOMED_Logo_RGB_Claim 1"
+    - button "Open/Close Menu":
+      - img
+    - button "Deutsch":
+      - link "Deutsch":
+        - /url: "#"
+        - img
+        - text: Deutsch
+- img "Dolomed-Bewegungsapparat-Tendinopathie-Illustration-02"
+- heading "Patienten & Zuweiser" [level=1]
+- paragraph: Bei Dolomed möchten wir Ihnen den Zugang zu unserer spezialisierten Schmerzmedizin so einfach und unkompliziert wie möglich gestalten. Wir verstehen, wie wichtig es ist, schnell und effizient die richtige Behandlung zu erhalten, und setzen daher auf einen niederschwelligen und transparenten Zuweisungsprozess.
+- link "Termin vereinbaren":
+  - /url: "#terminbuchen"
+- link "Jetzt anrufen":
+  - /url: tel:032 324 39 90
+- heading "Infos" [level=2]
+- paragraph: In der Regel benötigen unsere Patienten eine Zuweisung durch Ihren Hausarzt oder einen Facharzt. Dies stellt sicher, dass Ihre Behandlung von Anfang an gut koordiniert ist und alle relevanten medizinischen Informationen berücksichtigt werden. Sollten Sie Fragen zum Ablauf haben oder Unterstützung bei der Zuweisung benötigen, stehen wir Ihnen gerne zur Verfügung.
+- paragraph: Für Zuweiser bieten wir einen unkomplizierten und effizienten Prozess, um Ihre Patienten in die bestmögliche Behandlung zu übergeben. Wir legen großen Wert auf eine enge Zusammenarbeit und klare Kommunikation, um sicherzustellen, dass Ihre Patienten bei uns die bestmögliche Versorgung erhalten.
+- paragraph: Unser Ziel ist es, den Zuweisungsprozess für alle Beteiligten so reibungslos wie möglich zu gestalten – denn nur so können wir gemeinsam das Wohl der Patienten in den Mittelpunkt stellen.
+- heading "Zuweisungsformular für Hausärzte" [level=2]
+- paragraph: Wir möchten Ihnen die Zuweisung so einfach wie möglich machen. Hier finden Sie unser Zuweisungsformular, das sie uns ganz einfach via Post oder HIN-gesicherter E-Mail schicken können.
+- heading "Termin buchen für Patienten" [level=2]
+- paragraph: Hier können Sie selbst einen Termin zum Gespräch vereinbaren.
+- heading "ZUWEISUNG / BON DE DÉLÉGATION" [level=2]
+- paragraph: Kompetenzzentrum für Schmerzmedizin Centre de compétence pour la médecine de la douleur
+- heading "Kontaktdaten" [level=2]
+- paragraph: "Die Administration für unsere Standorte in Bern und Biel wird in Biel konzentriert. Daher können Sie jegliche Kontaktaufnahme (telefonisch, schriftlich per Mail oder Brief) an folgende Adresse richten:"
+- list:
+  - listitem:
+    - img
+    - text: Adresse
+- list:
+  - listitem: Dolomed, Bahnhofplatz 2c, 2502 Biel
+- list:
+  - listitem:
+    - img
+    - text: Telefonnummer
+- list:
+  - listitem:
+    - link "032 324 3990":
+      - /url: tel:032%20324%203990
+- list:
+  - listitem:
+    - img
+    - text: E-Mail
+- list:
+  - listitem:
+    - link "info@dolomed.ch":
+      - /url: mailto:info@dolomed.ch
+- contentinfo:
+  - link "Image link":
+    - /url: https://dolomed.ch/
+    - img "Image link"
+  - text: Seiten
+  - link "Startseite":
+    - /url: https://dolomed.ch/
+  - link "Angebot":
+    - /url: https://dolomed.ch///#angebot
+  - link "Für Patienten und Zuweiser":
+    - /url: https://dolomed.ch//#patienten
+  - link "Kontakt":
+    - /url: https://dolomed.ch//#kontakt
+  - link "Team":
+    - /url: https://dolomed.ch/#team
+  - link "Karriere":
+    - /url: https://dolomed.ch//#karriere
+  - text: Krankheiten
+  - link "Bewegungsapparat":
+    - /url: /bewegungsapparat/
+  - link "Schmerzen Innerer organe":
+    - /url: https://dolomed.ch/schmerzen-innerer-organe/
+  - link "kopfschmerzen und gesichtsschmerzen":
+    - /url: https://dolomed.ch/kopfschmerzen-und-gesichtsschmerzen/
+  - link "gefaesserkrankungen":
+    - /url: https://dolomed.ch/gefaesserkrankungen/
+  - link "behandlung von nervenschmerzen":
+    - /url: https://dolomed.ch/behandlung-von-nervenschmerzen/
+  - text: Therapie
+  - link "nervenstimulation":
+    - /url: https://dolomed.ch/nervenstimulation/
+  - link "natuerliche linderung durch akupunktur":
+    - /url: https://dolomed.ch/natuerliche-linderung-durch-akupunktur/
+  - link "chronischen schmerzen":
+    - /url: https://dolomed.ch/chronischen-schmerzen/
+  - link "behandlung von chronischen":
+    - /url: https://dolomed.ch/behandlung-von-chronischen/
+  - link "behandlung von rueckenschmerzen":
+    - /url: https://dolomed.ch/behandlung-von-rueckenschmerzen/
+  - link "plasma prp":
+    - /url: https://dolomed.ch/plasma-prp/
+  - link "stammzellentherapie":
+    - /url: https://dolomed.ch/stammzellentherapie/
+  - link "Lasertherapie":
+    - /url: /lasertherapie/
+  - link "Extrakorporale Stoßwellentherapie":
+    - /url: /extrakorporale-stosswellentherapie/
+  - link "Bewegungstherapie und Faszientraining":
+    - /url: /bewegungstherapie-und-faszientraining/
+  - link "Topische Therapie mit hochkonzentriertem Capsaicin":
+    - /url: /topische-therapie-mit-hochkonzentriertem-capsaicin/
+  - text: Rechtliches
+  - link "Impressum":
+    - /url: /impressum
+  - link "Datenschutz":
+    - /url: /datenschutz
+  - paragraph: Folgen Sie uns
+  - list:
+    - listitem:
+      - link:
+        - /url: https://www.instagram.com/dolomed.ag
+        - img
+  - paragraph: Copyright 2025 – Alle Rechte vorbehalten Dolomed.
+- button
+- button:
+  - img
+- button "Close contact slide button":
+  - img "Close"
+  - text: contact slide button
+- heading "Wir freuen uns immer mit Ihnen zu sprechen." [level=2]
+- text: Unterhalten wir uns
+- link "Phone +41 32 324 39 90":
+  - /url: tel:+41323243990
+  - img "Phone"
+  - text: +41 32 324 39 90
+- link "Email info@dolomed.ch":
+  - /url: mailto:info@dolomed.ch
+  - img "Email"
+  - text: info@dolomed.ch
+- text: Wir sind Mo-Fr von 8-18 Uhr kostenlos für Sie erreichbar.
+- list:
+  - listitem:
+    - link "list icon Termin vereinbaren":
+      - /url: "#terminbuchen"
+      - img "list icon"
+      - heading "Termin vereinbaren" [level=3]
+  - listitem:
+    - link "list icon Kontaktseite öffnen":
+      - /url: https://dolomed.ch/#kontaktform
+      - img "list icon"
+      - heading "Kontaktseite öffnen" [level=3]
+- button:
+  - img
+- button "Close contact slide button":
+  - img "Close"
+  - text: contact slide button
+- text: Senden Sie eine Nachricht an Dolomed Bei Fragen oder Anliegen wenden Sie sich bitte an uns. Schnelle Antworten und Hilfe sind garantiert.
+- list
+- form "Kontaktformular":
+  - paragraph:
+    - text: Name
+    - textbox "Name"
+  - paragraph:
+    - text: E-Mail-Adresse
+    - textbox "E-Mail-Adresse"
+  - paragraph:
+    - text: Telefonnummer
+    - textbox "Telefonnummer"
+  - paragraph:
+    - text: Schreiben Sie unten Ihre Nachricht
+    - textbox "Schreiben Sie unten Ihre Nachricht"
+  - paragraph:
+    - button "Senden"
+- button:
+  - img
+- button "Close contact slide button":
+  - img "Close"
+  - text: contact slide button
+- text: Rückruf anfordern Bei Fragen oder Anliegen wenden Sie sich bitte an uns. Schnelle Antworten und Hilfe sind garantiert.
+- list
+- form "Kontaktformular":
+  - paragraph:
+    - text: Name
+    - textbox "Name"
+  - paragraph:
+    - text: E-Mail-Adresse
+    - textbox "E-Mail-Adresse"
+  - paragraph:
+    - text: Telefonnummer
+    - textbox "Telefonnummer"
+  - paragraph:
+    - text: Schreiben Sie unten Ihre Nachricht
+    - textbox "Schreiben Sie unten Ihre Nachricht"
+  - paragraph:
+    - button "Senden"
+- link "Go to top":
+  - /url: "#"
+  - img
+- text: mobile
+```
+
+# Test source
+
+```ts
+   1 | import { test, expect, Page, Browser } from '@playwright/test';
+   2 | import { ImageComparison, DiffResult, SizeMismatchTolerance } from './image-diff';
+   3 |
+   4 | export interface VisualTestConfig {
+   5 |   url: string;
+   6 |   testName: string;
+   7 |   diffThreshold?: number;
+   8 |   viewport?: { width: number; height: number };
+   9 |   waitForLoadState?: 'load' | 'domcontentloaded' | 'networkidle';
+   10 |   customStyles?: string;
+   11 |   scrollToBottom?: boolean;
+   12 |   waitAfterScroll?: number;
+   13 |   sizeMismatchTolerance?: SizeMismatchTolerance;
+   14 | }
+   15 |
+   16 | export class VisualTestHelper {
+   17 |   private imageComparison: ImageComparison;
+   18 |   private page!: Page;
+   19 |   private timestamp: string;
+   20 |   private currentUser: string;
+   21 |
+   22 |   constructor() {
+   23 |     this.imageComparison = new ImageComparison();
+   24 |     this.timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
+   25 |     this.currentUser = process.env.USER || process.env.USERNAME || 'unknown';
+   26 |   }
+   27 |
+   28 |   async setup(browser: Browser, viewport = { width: 1366, height: 768 }): Promise<void> {
+   29 |     const context = await browser.newContext({ viewport });
+   30 |     this.page = await context.newPage();
+   31 |     console.log(`Test setup initialized at ${this.timestamp} by ${this.currentUser}`);
+   32 |   }
+   33 |
+   34 |   async cleanup(): Promise<void> {
+   35 |     if (this.page) {
+   36 |       await this.page.close();
+   37 |     }
+   38 |   }
+   39 |
+   40 |   async runVisualTest(config: VisualTestConfig): Promise<DiffResult> {
+   41 |     const {
+   42 |       url,
+   43 |       testName,
+   44 |       diffThreshold = 0.1,
+   45 |       waitForLoadState = 'networkidle',
+   46 |       customStyles,
+   47 |       scrollToBottom = true,
+   48 |       waitAfterScroll = 1000,
+   49 |       sizeMismatchTolerance
+   50 |     } = config;
+   51 |
+   52 |     console.log(`Starting visual test at ${this.timestamp}`);
+   53 |     console.log(`Test running by user: ${this.currentUser}`);
+   54 |     console.log('Page dimensions:', await this.page.viewportSize());
+   55 |
+   56 |     try {
+   57 |       // Navigate to the page
+   58 |       await this.page.goto(url);
+   59 |       await this.page.waitForLoadState(waitForLoadState);
+   60 |
+   61 |       // Apply custom styles if provided
+   62 |       if (customStyles) {
+   63 |         await this.page.addStyleTag({ content: customStyles });
+   64 |       }
+   65 |
+   66 |       // Auto-scroll if enabled
+   67 |       if (scrollToBottom) {
+   68 |         await this.autoScroll(waitAfterScroll);
+   69 |       }
+   70 |
+   71 |       // Perform image comparison
+   72 |       const diffResult = await this.imageComparison.compareScreenshots(
+   73 |         this.page, 
+   74 |         testName, 
+   75 |         diffThreshold, 
+   76 |         sizeMismatchTolerance
+   77 |       );
+   78 |       const reportPath = this.imageComparison.generateDiffReport(testName, diffResult);
+   79 |       
+   80 |       console.log(`
+   81 |         Test Results:
+   82 |         - Timestamp: ${this.timestamp}
+   83 |         - User: ${this.currentUser}
+   84 |         - Report Path: ${reportPath}
+   85 |         - Diff Percentage: ${diffResult.diffPercentage.toFixed(2)}%
+   86 |       `);
+   87 |
+   88 |       // Assert the diff percentage
+>  89 |       expect(diffResult.diffPercentage).toBeLessThanOrEqual(diffThreshold);
+      |                                         ^ Error: expect(received).toBeLessThanOrEqual(expected)
+   90 |
+   91 |       return diffResult;
+   92 |
+   93 |     } catch (error) {
+   94 |       console.error(`
+   95 |         Test failed at ${this.timestamp}
+   96 |         User: ${this.currentUser}
+   97 |         Error: ${error}
+   98 |       `);
+   99 |       throw error;
+  100 |     }
+  101 |   }
+  102 |
+  103 |   private async autoScroll(waitAfterScroll: number = 1000): Promise<void> {
+  104 |     await this.page.evaluate(async () => {
+  105 |       await new Promise<void>((resolve) => {
+  106 |         let totalHeight = 0;
+  107 |         const distance = 100;
+  108 |         const timer = setInterval(() => {
+  109 |           const scrollHeight = document.documentElement.scrollHeight;
+  110 |           window.scrollBy(0, distance);
+  111 |           totalHeight += distance;
+  112 |
+  113 |           if (totalHeight >= scrollHeight) {
+  114 |             clearInterval(timer);
+  115 |             window.scrollTo(0, scrollHeight);
+  116 |             resolve();
+  117 |           }
+  118 |         }, 240);
+  119 |       });
+  120 |     });
+  121 |
+  122 |     await this.page.waitForTimeout(waitAfterScroll);
+  123 |   }
+  124 |
+  125 |   // Getter method for accessing the image comparison instance if needed
+  126 |   get imageComparisonInstance(): ImageComparison {
+  127 |     return this.imageComparison;
+  128 |   }
+  129 |
+  130 |   // Getter method for accessing the page instance if needed
+  131 |   getPage(): Page {
+  132 |     return this.page;
+  133 |   }
+  134 | }
+```

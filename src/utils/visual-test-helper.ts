@@ -1,6 +1,5 @@
 import { test, expect, Page, Browser } from '@playwright/test';
-import { ImageComparison, DiffResult } from './image-diff';
-import config from '../config/playwright.config';
+import { ImageComparison, DiffResult, SizeMismatchTolerance } from './image-diff';
 
 export interface VisualTestConfig {
   url: string;
@@ -11,6 +10,7 @@ export interface VisualTestConfig {
   customStyles?: string;
   scrollToBottom?: boolean;
   waitAfterScroll?: number;
+  sizeMismatchTolerance?: SizeMismatchTolerance;
 }
 
 export class VisualTestHelper {
@@ -25,7 +25,7 @@ export class VisualTestHelper {
     this.currentUser = process.env.USER || process.env.USERNAME || 'unknown';
   }
 
-  async setup(browser: Browser, viewport = { width: 1024, height: 768 }): Promise<void> {
+  async setup(browser: Browser, viewport = { width: 1366, height: 768 }): Promise<void> {
     const context = await browser.newContext({ viewport });
     this.page = await context.newPage();
     console.log(`Test setup initialized at ${this.timestamp} by ${this.currentUser}`);
@@ -37,7 +37,7 @@ export class VisualTestHelper {
     }
   }
 
-  async runVisualTest(configInput: VisualTestConfig): Promise<DiffResult> {
+  async runVisualTest(config: VisualTestConfig): Promise<DiffResult> {
     const {
       url,
       testName,
@@ -45,18 +45,17 @@ export class VisualTestHelper {
       waitForLoadState = 'networkidle',
       customStyles,
       scrollToBottom = true,
-      waitAfterScroll = 1000
-    } = configInput;
+      waitAfterScroll = 1000,
+      sizeMismatchTolerance
+    } = config;
 
     console.log(`Starting visual test at ${this.timestamp}`);
     console.log(`Test running by user: ${this.currentUser}`);
     console.log('Page dimensions:', await this.page.viewportSize());
 
     try {
-      // Prepend baseURL if url is relative
-      const finalUrl = url.startsWith('http') ? url : ((config.use?.baseURL || '') + url);
       // Navigate to the page
-      await this.page.goto(finalUrl);
+      await this.page.goto(url);
       await this.page.waitForLoadState(waitForLoadState);
 
       // Apply custom styles if provided
@@ -70,7 +69,12 @@ export class VisualTestHelper {
       }
 
       // Perform image comparison
-      const diffResult = await this.imageComparison.compareScreenshots(this.page, testName);
+      const diffResult = await this.imageComparison.compareScreenshots(
+        this.page, 
+        testName, 
+        diffThreshold, 
+        sizeMismatchTolerance
+      );
       const reportPath = this.imageComparison.generateDiffReport(testName, diffResult);
       
       console.log(`
@@ -111,7 +115,7 @@ export class VisualTestHelper {
             window.scrollTo(0, scrollHeight);
             resolve();
           }
-        }, 100);
+        }, 240);
       });
     });
 
@@ -127,4 +131,4 @@ export class VisualTestHelper {
   getPage(): Page {
     return this.page;
   }
-} 
+}

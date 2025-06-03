@@ -15,7 +15,7 @@ export class MultiLanguageVisualHelper {
     this.visualTestHelper = new VisualTestHelper();
   }
 
-  async setup(browser: Browser, viewport = { width: 1024, height: 768 }): Promise<void> {
+  async setup(browser: Browser, viewport = { width: 1366, height: 768 }): Promise<void> {
     await this.visualTestHelper.setup(browser, viewport);
   }
 
